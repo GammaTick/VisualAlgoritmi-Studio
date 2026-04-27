@@ -1,0 +1,218 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:svg="clr-namespace:Svg.Skia.Avalonia;assembly=Svg.Skia.Avalonia"
+			 xmlns:controls="clr-namespace:VisualAlgoritmi_Studio.Controls.CreditsFooter"
+			 mc:Ignorable="d"
+			 d:DesignWidth="800"
+			 d:DesignHeight="450"
+			 x:Class="VisualAlgoritmi_Studio.Views.HomeView"
+			 xmlns:vm="clr-namespace:VisualAlgoritmi_Studio.ViewModels"
+			 x:DataType="vm:HomeViewModel"
+			 Background="#1C1C1C">
+
+	<UserControl.Styles>
+		<StyleInclude Source="avares://VisualAlgoritmi_Studio/Views/Styles/HomeViewStyles.axaml"/>
+	</UserControl.Styles>
+
+	<Grid RowDefinitions="Auto,Auto,*,Auto" Margin="30,20">
+
+		<!-- HEADER -->
+		<Border Grid.Row="0" Margin="18,28,0,32">
+			<StackPanel Grid.Row="0">
+				<TextBlock
+				Text="VisualAlgoritmi Studio"
+				FontFamily="Segoe UI"
+				FontSize="30"
+				FontWeight="SemiBold"
+				Foreground="White"
+				Margin="0,0,0,10"/>
+
+				<TextBlock Text="Съживи света на програмирането."
+						   FontSize="18"
+						   FontStyle="Italic"
+						   Foreground="#AAAAAA"/>
+			</StackPanel>
+		</Border>
+
+		<Grid Grid.Row="1" 
+			  ColumnDefinitions="*,*,*"
+			  ColumnSpacing="26"
+			  VerticalAlignment="Top"
+			  Margin="64">
+
+			<!-- Create new project -->
+			<Button Grid.Column="0"
+					Classes="primary-action"
+					MinHeight="100"
+					HorizontalAlignment="Stretch"
+					Command="{Binding NewProjectCommand}">
+
+				<Grid ColumnDefinitions="Auto,*"
+					  ColumnSpacing="20"
+					  VerticalAlignment="Stretch"
+					  Margin="20,0">
+
+					<Svg Width="56"
+						 Height="56"
+						 VerticalAlignment="Center"
+						 IsHitTestVisible="False"
+						 Path="/Assets/Icons/new-project.svg" />
+
+					<TextBlock Grid.Column="1"
+							   Text="Нов проект"
+							   VerticalAlignment="Center"
+							   FontSize="22"
+							   FontWeight="Bold"/>
+				</Grid>
+			</Button>
+
+			<!-- Open project -->
+			<Button Grid.Column="1"
+					Classes="primary-action"
+					MinHeight="100"
+					HorizontalAlignment="Stretch"
+					Click="BrowseProject_Click">
+
+				<Grid ColumnDefinitions="Auto,*"
+					  ColumnSpacing="20"
+					  VerticalAlignment="Stretch"
+					  Margin="20,0">
+
+					<Svg Width="56"
+						 Height="56"
+						 VerticalAlignment="Center"
+						 IsHitTestVisible="False"
+						 Path="/Assets/Icons/open-project.svg" />
+
+					<TextBlock Grid.Column="1"
+							   Text="Отвори проект"
+							   VerticalAlignment="Center"
+							   FontSize="22"
+							   FontWeight="Bold"/>
+				</Grid>
+			</Button>
+
+			<!-- Open animation -->
+			<Button Grid.Column="2"
+					Classes="primary-action"
+					MinHeight="100"
+					HorizontalAlignment="Stretch"
+					Click="BrowseAnimation_Click">
+
+				<Grid ColumnDefinitions="Auto,*"
+					  ColumnSpacing="20"
+					  VerticalAlignment="Stretch"
+					  Margin="20,0">
+
+					<Svg Width="56"
+						 Height="56"
+						 VerticalAlignment="Center"
+						 IsHitTestVisible="False"
+						 Path="/Assets/Icons/open-animation.svg" />
+
+					<TextBlock Grid.Column="1"
+							   Text="Отвори анимация"
+							   VerticalAlignment="Center"
+							   FontSize="22"
+							   FontWeight="Bold"/>
+				</Grid>
+			</Button>
+		</Grid>
+
+		<Border Grid.Row="2" Margin="64,0,64,24">
+			<Grid RowDefinitions="Auto,Auto,*">
+				<TextBlock Grid.Row="0"
+						   Text="Скорошни проекти"
+						   FontSize="18"
+						   FontWeight="SemiBold"
+						   Foreground="White"
+						   Margin="0,0,0,8"/>
+
+				<!-- Empty state -->
+				<TextBlock Grid.Row="1"
+							   Text="Няма намерени скорошни проекти."
+						   FontSize="20"
+						   FontStyle="Italic"
+						   Foreground="#888888"
+						   IsVisible="{Binding HasNoRecentProjects}"
+						   Margin="0,24,0,0"/>
+
+				<ScrollViewer Grid.Row="2"
+							  VerticalScrollBarVisibility="Auto"
+							  AllowAutoHide="False"
+							  IsVisible="{Binding HasRecentProjects}">
+					<ItemsControl ItemsSource="{Binding RecentProjects}">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate x:DataType="vm:HomeViewModel+RecentProjectCard">
+								<Button Background="Transparent"
+										Padding="0"
+										Margin="0,0,0,12"
+										BorderThickness="0"
+										HorizontalAlignment="Stretch"
+										HorizontalContentAlignment="Stretch"
+										Command="{Binding $parent[UserControl].((vm:HomeViewModel)DataContext).LoadProjectCommand}"
+										CommandParameter="{Binding ProjectPath}"
+										Cursor="Hand">
+									<Button.ContextMenu>
+										<ContextMenu>
+													<MenuItem Header="Премахни от списъка"
+													  Command="{Binding RemoveFromListCommand}" />
+											<Separator />
+													<MenuItem Header="Отвори местоположението"
+													  Command="{Binding OpenProjectLocationCommand}" />
+										</ContextMenu>
+									</Button.ContextMenu>
+									<Button.Styles>
+										<Style Selector="Button:pointerover /template/ ContentPresenter">
+											<Setter Property="Background" Value="Transparent"/>
+										</Style>
+									</Button.Styles>
+									<Border Background="#2D2D2D"
+											CornerRadius="8"
+											Padding="16"
+											BorderThickness="1"
+											BorderBrush="#3D3D3D">
+										<Border.Styles>
+											<Style Selector="Border">
+												<Setter Property="Background" Value="#2D2D2D"/>
+											</Style>
+											<Style Selector="Button:pointerover > Border">
+												<Setter Property="Background" Value="#3D3D3D"/>
+											</Style>
+										</Border.Styles>
+										<Grid ColumnDefinitions="*,Auto">
+											<StackPanel Grid.Column="0" Spacing="6">
+												<TextBlock Text="{Binding ProjectName}"
+														   FontSize="16"
+														   FontWeight="SemiBold"
+														   Foreground="White"/>
+												<TextBlock Text="{Binding ProjectPath}"
+														   FontSize="12"
+														   Foreground="#888888"
+														   TextTrimming="CharacterEllipsis"/>
+
+												<TextBlock Text="{Binding DataStructureType}"
+														   FontSize="12"
+														   Foreground="#4FC3F7"/>
+											</StackPanel>
+											<TextBlock Grid.Column="1"
+													   Text="{Binding LastOpenedFormatted}"
+													   FontSize="12"
+													   Foreground="White"
+													   VerticalAlignment="Top"
+													   Margin="16,0,0,0"/>
+										</Grid>
+									</Border>
+								</Button>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+				</ScrollViewer>
+			</Grid>
+		</Border>
+
+		<controls:CreditsFooter Grid.Row="3" />
+	</Grid>
+</UserControl>

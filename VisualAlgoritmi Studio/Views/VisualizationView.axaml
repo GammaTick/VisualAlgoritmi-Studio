@@ -1,0 +1,514 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:editor="clr-namespace:VisualAlgoritmi_Studio.Controls.Editor"
+			 xmlns:console="clr-namespace:VisualAlgoritmi_Studio.Controls.Console"
+			 xmlns:svg="clr-namespace:Svg.Skia.Avalonia;assembly=Svg.Skia.Avalonia"
+			 xmlns:vm="clr-namespace:VisualAlgoritmi_Studio.ViewModels"
+			 xmlns:models="clr-namespace:VisualAlgoritmi_Studio.Models"
+			 xmlns:controls="clr-namespace:VisualAlgoritmi_Studio.Controls.CreditsFooter"
+			 mc:Ignorable="d"
+			 d:DesignWidth="800"
+			 d:DesignHeight="450"
+			 x:Class="VisualAlgoritmi_Studio.Views.VisualizationView"
+			 x:DataType="vm:VisualizationViewModel"
+			 Background="#1C1C1C">
+	<UserControl.Styles>
+		<StyleInclude Source="avares://VisualAlgoritmi_Studio/Views/Styles/VisualizationViewStyles.axaml"/>
+	</UserControl.Styles>
+
+	<Grid RowDefinitions="30,*,Auto">
+
+		<!-- TITLE BAR MENU -->
+		<Border Grid.Row="0" Background="#1C1C1C">
+			<Menu Background="Transparent"
+				  FontFamily="Segoe UI"
+				  FontWeight="SemiBold"
+				  VerticalAlignment="Center"
+				  Margin="4,0">
+				<MenuItem Header="Проект">
+					<MenuItem Header="Импортирай код"
+							  Command="{Binding ImportCodeCommand}" />
+					<Separator />
+					<MenuItem Header="Отвори местоположение"
+							  Command="{Binding OpenLocationCommand}" />
+					<Separator />
+					<MenuItem Header="Експортирай код"
+							  Command="{Binding ExportCodeCommand}" />
+					<Separator />
+					<MenuItem Header="Зареди примерен код"
+							  Command="{Binding LoadExampleCodeCommand}" />
+				</MenuItem>
+
+				<MenuItem Header="Анимация">
+					<MenuItem Header="Експортирай анимация"
+							  Command="{Binding ExportAnimationCommand}" />
+					<Separator />
+					<MenuItem Header="Нулирай изгледа"
+							  Command="{Binding ResetViewCommand}" />
+				</MenuItem>
+			</Menu>
+		</Border>
+
+		<!-- MAIN SHELL -->
+		<Border Grid.Row="1" Padding="20,0,20,6">
+			<Grid RowDefinitions="Auto,*,Auto">
+
+				<!-- TOP TOOLBAR -->
+				<Border Grid.Row="0">
+					<StackPanel Orientation="Horizontal"
+								Spacing="8"
+								VerticalAlignment="Center">
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								Command="{Binding GoHomeCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<TextBlock VerticalAlignment="Center"
+										   Foreground="White"
+										   FontFamily="Segoe UI"
+										   Text="Начало" />
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/home.svg" />
+							</StackPanel>
+						</Button>
+
+						<Separator Width="1" Margin="6,0" />
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								ToolTip.Tip="Запази кода"
+								Command="{Binding SaveCodeCommand}">
+							<Svg Classes="toolbar-icon"
+								 Path="/Assets/Icons/save-code.svg" />
+						</Button>
+
+						<Separator Width="1" Margin="6,0" />
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								ToolTip.Tip="Отмени"
+								Command="{Binding UndoCommand}">
+							<Svg Classes="toolbar-icon-large"
+								 Path="/Assets/Icons/undo-change.svg" />
+						</Button>
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								ToolTip.Tip="Повтори"
+								Command="{Binding RedoCommand}">
+							<Svg Classes="toolbar-icon-large"
+								 Path="/Assets/Icons/redo-change.svg" />
+						</Button>
+
+						<Separator Width="1" Margin="6,0" />
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								ToolTip.Tip="Закоментирай"
+								Command="{Binding CommentLinesCommand}">
+							<Svg Classes="toolbar-icon-large"
+								 Path="/Assets/Icons/comment-out-lines.svg" />
+						</Button>
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								ToolTip.Tip="Разкоментирай"
+								Command="{Binding UncommentLinesCommand}">
+							<Svg Classes="toolbar-icon-large"
+								 Path="/Assets/Icons/uncomment-lines.svg" />
+						</Button>
+
+						<Separator Width="1" Margin="6,0" />
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								Command="{Binding RunCodeCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<TextBlock VerticalAlignment="Center"
+										   Foreground="White"
+										   FontFamily="Segoe UI"
+										   Text="{Binding RunButtonText}" />
+								<Svg Classes="toolbar-icon"
+									 Path="{Binding RunButtonIcon}" />
+							</StackPanel>
+						</Button>
+
+						<Separator Width="1" Margin="6,0" />
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								Command="{Binding ReverseStepCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<TextBlock VerticalAlignment="Center"
+										   Foreground="White"
+										   FontFamily="Segoe UI"
+										   Text="Предишна стъпка" />
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/rewind-step.svg" />
+							</StackPanel>
+						</Button>
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								Command="{Binding AdvanceStepCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<TextBlock VerticalAlignment="Center"
+										   Foreground="White"
+										   FontFamily="Segoe UI"
+										   Text="Следваща стъпка" />
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/step-forward.svg" />
+							</StackPanel>
+						</Button>
+
+						<Button Classes="top-toolbar-button"
+								HorizontalAlignment="Left"
+								VerticalAlignment="Center"
+								Command="{Binding RestartCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<TextBlock VerticalAlignment="Center"
+										   Foreground="White"
+										   FontFamily="Segoe UI"
+										   Text="Рестартирай" />
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/reset-steps.svg" />
+							</StackPanel>
+						</Button>
+					</StackPanel>
+				</Border>
+
+				<!-- BODY -->
+				<Grid Grid.Row="1" RowDefinitions="Auto,*,Auto">
+
+					<!-- HEADER BAR -->
+					<Grid Grid.Row="0"
+						  MinHeight="32"
+						  VerticalAlignment="Center"
+						  Margin="0,0,0,8">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="{Binding EditorColumnWidth}" />
+							<ColumnDefinition Width="{Binding CanvasColumnWidth}" />
+						</Grid.ColumnDefinitions>
+
+						<!-- LEFT HEADER -->
+						<StackPanel Grid.Column="0"
+									Orientation="Horizontal"
+									VerticalAlignment="Center"
+									Spacing="12"
+									Margin="0,0,16,0">
+							<Border Padding="8,3"
+									Background="#252525"
+									BorderBrush="#3A3A3A"
+									BorderThickness="1"
+									CornerRadius="4"
+									VerticalAlignment="Center">
+								<StackPanel Orientation="Horizontal" Spacing="6">
+									<TextBlock Classes="header-muted"
+											   Text="Структура:" />
+									<TextBlock Classes="header-value"
+											   Text="{Binding SelectedDataStructureName}"
+											   TextTrimming="CharacterEllipsis" />
+								</StackPanel>
+							</Border>
+
+							<TextBlock Classes="header-muted"
+									   Text="● Незапазени промени"
+									   IsVisible="{Binding HasUnsavedChanges}" />
+						</StackPanel>
+
+						<!-- CANVAS HEADER -->
+						<StackPanel Grid.Column="1"
+									Orientation="Horizontal"
+									HorizontalAlignment="Left"
+									VerticalAlignment="Center"
+									Spacing="8"
+									Margin="16,0,0,0"
+									IsVisible="{Binding IsCanvasAreaVisible}">
+							<TextBlock Classes="header-muted"
+									   Text="{Binding CanvasZoomText}" />
+							<TextBlock Classes="header-muted"
+									   Text="{Binding CanvasOffsetText}" />
+						</StackPanel>
+
+						<!-- LAYOUT MODE BUTTONS -->
+						<StackPanel Grid.Column="0"
+									Grid.ColumnSpan="2"
+									Orientation="Horizontal"
+									HorizontalAlignment="Right"
+									VerticalAlignment="Center"
+									Spacing="4">
+							<Button Classes="view-mode-button"
+									ToolTip.Tip="Само редактор"
+									Command="{Binding ShowEditorOnlyCommand}">
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/editor-only.svg" />
+							</Button>
+
+							<Button Classes="view-mode-button"
+									ToolTip.Tip="Разделен изглед"
+									Command="{Binding ShowNormalCommand}">
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/split-view.svg" />
+							</Button>
+
+							<Button Classes="view-mode-button"
+									ToolTip.Tip="Само платно"
+									Command="{Binding ShowCanvasOnlyCommand}">
+								<Svg Classes="toolbar-icon"
+									 Path="/Assets/Icons/canvas.svg" />
+							</Button>
+						</StackPanel>
+					</Grid>
+
+					<!-- MAIN CONTENT -->
+					<Grid Grid.Row="1">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="{Binding EditorColumnWidth}" />
+							<ColumnDefinition Width="{Binding CanvasColumnWidth}" />
+						</Grid.ColumnDefinitions>
+
+						<!-- EDITOR SIDE -->
+						<Grid Grid.Column="0"
+							  RowDefinitions="*,Auto"
+							  IsVisible="{Binding IsEditorAreaVisible}">
+
+							<Border Grid.Row="0"
+									BorderBrush="#2b2b2b"
+									BorderThickness="1">
+								<Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto">
+									<editor:CodeEditor Name="CodeEditorControl"
+													   Grid.Row="0"
+													   Grid.Column="0" />
+
+									<ScrollBar Name="EditorVerticalScrollBar"
+											   Grid.Row="0"
+											   Grid.Column="1"
+											   Orientation="Vertical"
+											   AllowAutoHide="False"
+											   Width="12" />
+
+									<ScrollBar Name="EditorHorizontalScrollBar"
+											   Grid.Row="1"
+											   Grid.Column="0"
+											   Orientation="Horizontal"
+											   AllowAutoHide="False"
+											   Height="12" />
+								</Grid>
+							</Border>
+
+							<Border Grid.Row="1"
+									Height="200"
+									Margin="0,8,0,0"
+									ClipToBounds="True"
+									BorderBrush="#2b2b2b"
+									BorderThickness="1">
+								<Grid RowDefinitions="*,Auto">
+
+									<Grid Grid.Row="0" Margin="8">
+
+										<Grid IsVisible="{Binding IsErrorListVisible}"
+											  RowDefinitions="Auto,*">
+											<Border Margin="-8,0,-8,4"
+													Padding="8,0,8,6"
+													BorderThickness="0,0,0,2"
+													BorderBrush="#2b2b2b">
+												<Grid ColumnDefinitions="80,*,60,60">
+													<TextBlock Text="Код"
+															   FontFamily="Segoe UI"
+															   FontSize="13"
+															   FontWeight="Bold"
+															   Foreground="#D4D4D4" />
+													<TextBlock Grid.Column="1"
+															   Text="Описание"
+															   FontFamily="Segoe UI"
+															   FontSize="13"
+															   FontWeight="Bold"
+															   Foreground="#D4D4D4" />
+													<TextBlock Grid.Column="2"
+															   Text="Ред"
+															   FontFamily="Segoe UI"
+															   FontSize="13"
+															   FontWeight="Bold"
+															   Foreground="#D4D4D4" />
+													<TextBlock Grid.Column="3"
+															   Text="Колона"
+															   FontFamily="Segoe UI"
+															   FontSize="13"
+															   FontWeight="Bold"
+															   Foreground="#D4D4D4" />
+												</Grid>
+											</Border>
+
+											<ScrollViewer Grid.Row="1"
+														  VerticalScrollBarVisibility="Auto"
+														  HorizontalScrollBarVisibility="Disabled"
+														  AllowAutoHide="False">
+												<ItemsControl ItemsSource="{Binding Errors}">
+													<ItemsControl.ItemTemplate>
+														<DataTemplate x:DataType="models:EditorError">
+															<Button Background="Transparent"
+																	BorderThickness="0"
+																	Padding="0"
+																	HorizontalAlignment="Stretch"
+																	HorizontalContentAlignment="Stretch"
+																	Cursor="Hand"
+																	Command="{Binding $parent[ItemsControl].((vm:VisualizationViewModel)DataContext).NavigateToErrorCommand}"
+																	CommandParameter="{Binding}">
+																<Button.Styles>
+																	<Style Selector="Button:pointerover /template/ ContentPresenter">
+																		<Setter Property="Background" Value="#1AFFFFFF" />
+																	</Style>
+																	<Style Selector="Button:pressed /template/ ContentPresenter">
+																		<Setter Property="Background" Value="#1AFFFFFF" />
+																	</Style>
+																	<Style Selector="Button:focus /template/ ContentPresenter">
+																		<Setter Property="Background" Value="#1AFFFFFF" />
+																	</Style>
+																</Button.Styles>
+																<Button.ContextMenu>
+																	<ContextMenu x:CompileBindings="False">
+																		<ContextMenu.Styles>
+																			<Style Selector="ContextMenu > MenuItem">
+																				<Setter Property="Foreground" Value="White" />
+																			</Style>
+																			<Style Selector="ContextMenu > MenuItem /template/ ContentPresenter#PART_HeaderPresenter">
+																				<Setter Property="TextElement.Foreground" Value="White" />
+																			</Style>
+																			<Style Selector="ContextMenu > MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+																				<Setter Property="TextElement.Foreground" Value="White" />
+																			</Style>
+																		</ContextMenu.Styles>
+																		<MenuItem Header="Копирай съобщението за грешка"
+																				  Click="OnCopyErrorMessageClicked" />
+																	</ContextMenu>
+																</Button.ContextMenu>
+
+																<Grid ColumnDefinitions="80,*,60,60" Margin="0,4">
+																	<TextBlock Text="{Binding Code}"
+																			   FontFamily="Segoe UI"
+																			   FontSize="13"
+																			   Foreground="#D4D4D4" />
+
+																	<TextBlock Grid.Column="1"
+																			   Text="{Binding Message}"
+																			   FontFamily="Segoe UI"
+																			   FontSize="13"
+																			   Foreground="#D4D4D4"
+																			   TextWrapping="Wrap" />
+
+																	<TextBlock Grid.Column="2"
+																			   Text="{Binding Line}"
+																			   FontFamily="Segoe UI"
+																			   FontSize="13"
+																			   Foreground="#D4D4D4" />
+
+																	<TextBlock Grid.Column="3"
+																			   Text="{Binding Column}"
+																			   FontFamily="Segoe UI"
+																			   FontSize="13"
+																			   Foreground="#D4D4D4" />
+																</Grid>
+															</Button>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+											</ScrollViewer>
+										</Grid>
+
+										<console:ConsoleControl Name="ConsoleOutputControl"
+																IsVisible="{Binding IsOutputVisible}" />
+									</Grid>
+
+									<Border Grid.Row="1"
+											BorderThickness="0,2,0,0"
+											BorderBrush="#2b2b2b">
+										<StackPanel Orientation="Horizontal">
+											<Border BorderThickness="0,0,2,0"
+													BorderBrush="#2b2b2b">
+												<ToggleButton Classes="bottom-panel-button"
+															  Command="{Binding ShowErrorListCommand}"
+															  IsChecked="{Binding IsErrorListSelected, Mode=OneWay}"
+															  Content="Списък с грешки" />
+											</Border>
+											<Border BorderThickness="0,0,2,0"
+													BorderBrush="#2b2b2b">
+												<ToggleButton Classes="bottom-panel-button"
+															  Command="{Binding ShowOutputCommand}"
+															  IsChecked="{Binding IsOutputSelected, Mode=OneWay}"
+															  Content="Конзола" />
+											</Border>
+										</StackPanel>
+									</Border>
+								</Grid>
+							</Border>
+						</Grid>
+
+						<!-- CANVAS SIDE -->
+						<Grid Grid.Column="1"
+							  RowDefinitions="*,Auto"
+							  IsVisible="{Binding IsCanvasAreaVisible}">
+
+							<Border Grid.Row="0"
+									BorderBrush="#2b2b2b"
+									BorderThickness="1">
+								<ContentControl Content="{Binding VisualizerCanvas}" />
+							</Border>
+
+							<Border Grid.Row="1"
+									Height="200"
+									Margin="0,8,0,0"
+									ClipToBounds="True"
+									BorderBrush="#2b2b2b"
+									BorderThickness="1">
+								<StackPanel Margin="8" Spacing="10">
+									<TextBlock FontSize="16"
+											   Foreground="#D4D4D4">
+										<Run FontWeight="Bold">Стъпка:</Run>
+										<Run Text="{Binding CurrentStepValueText}" />
+									</TextBlock>
+
+									<StackPanel Spacing="2">
+										<TextBlock FontSize="16"
+												   FontWeight="Bold"
+												   Foreground="#D4D4D4"
+												   Text="{Binding OperationsPrefixText}" />
+										<TextBlock Text="{Binding CurrentOperationsText}"
+												   FontSize="16"
+												   Foreground="#D4D4D4"
+												   TextWrapping="Wrap" />
+									</StackPanel>
+								</StackPanel>
+							</Border>
+						</Grid>
+					</Grid>
+
+					<!-- STATUS BAR -->
+					<Border Grid.Row="2"
+							BorderThickness="0,1,0,0"
+							BorderBrush="#2b2b2b"
+							Padding="8,4">
+						<TextBlock Text="{Binding ExecutionStatusText}"
+								   FontFamily="Segoe UI"
+								   FontSize="13"
+								   Foreground="#9E9E9E"
+								   VerticalAlignment="Center" />
+					</Border>
+				</Grid>
+			</Grid>
+		</Border>
+
+		<!-- FOOTER -->
+		<controls:CreditsFooter Grid.Row="2" Margin="30,0,30,20" />
+	</Grid>
+</UserControl>

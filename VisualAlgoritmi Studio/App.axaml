@@ -1,0 +1,15 @@
+<Application xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 x:Class="VisualAlgoritmi_Studio.App"
+			 xmlns:local="using:VisualAlgoritmi_Studio"
+			 RequestedThemeVariant="Default">
+	
+	<Application.DataTemplates>
+		<local:ViewLocator/>
+	</Application.DataTemplates>
+	
+	<Application.Styles>
+		<FluentTheme />
+		<StyleInclude Source="avares://VisualAlgoritmi_Studio/Views/Styles/GlobalStyles.axaml" />
+	</Application.Styles>
+</Application>

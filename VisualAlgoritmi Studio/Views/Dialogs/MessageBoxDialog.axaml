@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svg="clr-namespace:Svg.Skia.Avalonia;assembly=Svg.Skia.Avalonia"
+        x:Class="VisualAlgoritmi_Studio.Views.Dialogs.MessageBoxDialog"
+        CanResize="False"
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        WindowDecorations="BorderOnly"
+        MinWidth="320"
+        MaxWidth="520"
+        Background="#1E1E1E">
+
+    <Window.Styles>
+        <Style Selector="Button.msgbox-primary">
+            <Setter Property="Background" Value="#0E639C" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#1177BB" />
+        </Style>
+        <Style Selector="Button.msgbox-primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1177BB" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#1488CC" />
+        </Style>
+        <Style Selector="Button.msgbox-secondary">
+            <Setter Property="Background" Value="#3F3F46" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#555558" />
+        </Style>
+        <Style Selector="Button.msgbox-secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#505058" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#666669" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#3F3F46" BorderThickness="1">
+        <StackPanel>
+            <!-- Draggable title bar -->
+            <Border x:Name="TitleBar"
+                    Background="#2D2D30"
+                    Padding="16,10"
+                    PointerPressed="TitleBar_PointerPressed">
+                <TextBlock x:Name="TitleText"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#FFFFFF"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Content -->
+            <StackPanel Spacing="16" Margin="24,16,24,24">
+                <!-- Icon + Message -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <Svg x:Name="IconSvg"
+                         Grid.Column="0"
+                         Width="36"
+                         Height="36"
+                         IsVisible="False"
+                         Margin="0,0,14,0"
+                         VerticalAlignment="Top" />
+                    <TextBlock x:Name="MessageText"
+                               Grid.Column="1"
+                               FontSize="14"
+                               Foreground="#CCCCCC"
+                               TextWrapping="Wrap" />
+                </Grid>
+
+                <!-- Buttons -->
+                <StackPanel x:Name="ButtonPanel"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8"
+                            Margin="0,8,0,0" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

@@ -1,0 +1,185 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Style Selector="Button">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button.top-toolbar-button">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Padding" Value="16,8" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:pointerover">
+        <Setter Property="Background" Value="#3D3D3D" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#3D3D3D" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:pressed">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:checked">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:checked:pointerover">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ToggleButton.bottom-panel-button:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button:pointerover">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button:pressed">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Menu bar: background #1F1F1F, no border (border is only on the popup panel) -->
+    <Style Selector="Menu">
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Background" Value="#1F1F1F" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Top-level menu items (the buttons that open dropdown menus) -->
+    <Style Selector="Menu > MenuItem">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <!-- Hover: brighten background ~10% (#1F1F1F → #393939), foreground stays white -->
+    <Style Selector="Menu > MenuItem:pointerover">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="#393939" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <!-- Open: keep the same hover background when menu is open -->
+    <Style Selector="Menu > MenuItem:open">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:open /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="#393939" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:open /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:open:pointerover">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:open:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="#393939" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:open:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+	<Style Selector="Svg.toolbar-icon">
+		<Setter Property="Width" Value="24" />
+		<Setter Property="Height" Value="24" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+		<Setter Property="IsHitTestVisible" Value="False" />
+	</Style>
+
+	<Style Selector="Svg.toolbar-icon-large">
+		<Setter Property="Width" Value="26" />
+		<Setter Property="Height" Value="26" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+		<Setter Property="IsHitTestVisible" Value="False" />
+	</Style>
+
+	<Style Selector="Button.view-mode-button">
+		<Setter Property="Width" Value="32" />
+		<Setter Property="Height" Value="32" />
+		<Setter Property="Padding" Value="4" />
+		<Setter Property="HorizontalAlignment" Value="Left" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+	</Style>
+
+	<Style Selector="TextBlock.header-muted">
+		<Setter Property="FontFamily" Value="Segoe UI" />
+		<Setter Property="FontSize" Value="13" />
+		<Setter Property="Foreground" Value="#9E9E9E" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+	</Style>
+
+	<Style Selector="TextBlock.header-value">
+		<Setter Property="FontFamily" Value="Segoe UI" />
+		<Setter Property="FontSize" Value="13" />
+		<Setter Property="FontWeight" Value="SemiBold" />
+		<Setter Property="Foreground" Value="#D4D4D4" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+	</Style>
+
+</Styles>

@@ -1,0 +1,42 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Linq;
+using System.IO;
+
+internal class Program
+{
+    static void Main(string[] args)
+    {
+        LinkedList<int> list = new LinkedList<int>();
+
+        list.AddFirst(10);
+        list.AddLast(20);
+        list.AddLast(30);
+
+        LinkedListNode<int> node20 = list.Find(20);
+
+        list.AddBefore(node20, 15);
+        list.AddAfter(node20, 25);
+
+        list.Remove(30);
+        list.RemoveFirst();
+        list.RemoveLast();
+
+        bool containsValue = list.Contains(25);
+
+        int count = list.Count;
+
+        list.AddLast(40);
+        list.AddLast(50);
+
+        list.Clear();
+
+        list.AddFirst(100);
+        list.AddLast(200);
+    }
+}

@@ -1,0 +1,22 @@
+<Styles xmlns="https://github.com/avaloniaui"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+	<Style Selector="Button.primary-action">
+		<!-- Default -->
+		<Setter Property="Background" Value="#383838"/>
+		<Setter Property="BorderBrush" Value="#424242"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="Foreground" Value="White"/>
+		<Setter Property="CornerRadius" Value="4"/>
+		<Setter Property="FontSize" Value="14"/>
+
+		<Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<!-- Hover -->
+			<Setter Property="Background" Value="#221D46"/>
+			<Setter Property="BorderBrush" Value="#7160E8"/>
+			<Setter Property="Foreground" Value="White"/>
+		</Style>
+	</Style>
+
+
+</Styles>

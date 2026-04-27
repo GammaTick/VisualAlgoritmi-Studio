@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:svg="clr-namespace:Svg.Skia.Avalonia;assembly=Svg.Skia.Avalonia"
+			 x:Class="VisualAlgoritmi_Studio.Controls.CreditsFooter.CreditsFooter">
+
+	<Border BorderThickness="0,1,0,0"
+			BorderBrush="#2b2b2b"
+			Padding="8,4">
+		<StackPanel Orientation="Horizontal"
+					VerticalAlignment="Center">
+			<TextBlock Text="Създадено от Константин Кузмов" 
+					   Margin="0,0,20,0"
+					   FontFamily="Segoe UI"
+					   FontSize="15"
+					   Foreground="#9E9E9E"
+					   VerticalAlignment="Center" />
+			<Button Background="Transparent"
+					BorderThickness="0"
+					Padding="0"
+					Cursor="Hand"
+					VerticalAlignment="Center"
+					Click="GitHubLink_Click">
+				<StackPanel Orientation="Horizontal" Spacing="4">
+					<Svg Width="18"
+						 Height="18"
+						 VerticalAlignment="Center"
+						 Path="/Assets/Icons/github-logo.svg" />
+					<TextBlock Text="GitHub: https://github.com/GammaTick"
+							   FontFamily="Segoe UI"
+							   FontSize="15"
+							   Foreground="#9E9E9E"
+							   VerticalAlignment="Center" />
+				</StackPanel>
+			</Button>
+		</StackPanel>
+	</Border>
+</UserControl>

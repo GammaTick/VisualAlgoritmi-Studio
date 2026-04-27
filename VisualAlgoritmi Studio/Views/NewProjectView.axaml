@@ -1,0 +1,182 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:controls="clr-namespace:VisualAlgoritmi_Studio.Controls.CreditsFooter"
+			 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 x:Class="VisualAlgoritmi_Studio.Views.NewProjectView"
+			 xmlns:vm="clr-namespace:VisualAlgoritmi_Studio.ViewModels"
+			 x:DataType="vm:NewProjectViewModel"
+			 Background="#1C1C1C">
+
+	<UserControl.Styles>
+		<StyleInclude Source="avares://VisualAlgoritmi_Studio/Views/Styles/NewProjectViewStyles.axaml"/>
+	</UserControl.Styles>
+
+	<Grid RowDefinitions="Auto,*,Auto,Auto" Margin="30,20">
+		<TextBlock Grid.Row="0"
+				   Text="Създай нов проект"
+				   FontFamily="Segoe UI"
+				   FontSize="28"
+				   FontWeight="Medium"
+				   Foreground="White"
+				   Margin="0,32,0,64"/>
+
+		<Grid Grid.Row="1"
+			  ColumnDefinitions="Auto,*"
+			  ColumnSpacing="120">
+
+			<StackPanel Grid.Column="0"
+						Spacing="20">
+
+				<StackPanel Spacing="6">
+						<TextBlock Text="Име на проекта"
+							   FontSize="14"
+							   Foreground="White"/>
+
+					<TextBox Classes="styled-textbox"
+							 Text="{Binding ProjectName}"/>
+
+					<TextBlock Text="{Binding ProjectNameError}"
+							   FontSize="13"
+							   Foreground="#FF5555"
+							   TextWrapping="Wrap"/>
+				</StackPanel>
+
+				<StackPanel Spacing="6" Margin="0,0,0,24">
+						<TextBlock Text="Местоположение"
+							   FontSize="14"
+							   Foreground="White"/>
+
+					<Grid ColumnDefinitions="*,Auto"
+						  Margin="0,0,0,16">
+						<TextBox Grid.Column="0"
+								 Classes="styled-textbox"
+								 Text="{Binding ProjectParentDirectory}"/>
+
+						<Button Grid.Column="1"
+								Classes="footer-button"
+								Content="..."
+								Margin="8,0,0,0"
+								HorizontalContentAlignment="Center"
+								VerticalContentAlignment="Center"
+								MinWidth="36"
+								Click="BrowseProjectLocation_Click"/>
+					</Grid>
+
+					<TextBlock Text="{Binding ProjectLocationError}"
+							   FontSize="13"
+							   Foreground="#FF5555"
+							   TextWrapping="Wrap"
+							   Margin="0,0,0,8"/>
+
+					<TextBlock Text="{Binding ProjectFullPath}"
+							   FontSize="13"
+							   Foreground="#AAAAAA"
+							   MaxWidth="420"
+							   TextWrapping="Wrap"
+							   HorizontalAlignment="Left"
+							   TextAlignment="Left"
+							   Padding="0"
+							   Margin="0"/>
+
+				</StackPanel>
+
+				<StackPanel Spacing="4" Margin="0,12,0,0">
+						<CheckBox Content="Зареди примерен код"
+							  IsChecked="{Binding LoadExampleCode}"/>
+						<TextBlock Text="Зарежда примерен код, демонстриращ избраната структура от данни."
+							   FontSize="12"
+							   Foreground="#AAAAAA"/>
+				</StackPanel>
+
+			</StackPanel>
+
+			<Grid Grid.Column="1" ColumnDefinitions="9*,1*">
+				<StackPanel Grid.Column="0" Spacing="12">
+					<TextBox Classes="styled-textbox"
+							 PlaceholderText="Търсене на структури от данни..."
+							 Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+					<ItemsControl ItemsSource="{Binding DataStructureCards}">
+						<ItemsControl.ItemsPanel>
+							<ItemsPanelTemplate>
+								<UniformGrid Columns="3" HorizontalAlignment="Stretch"/>
+							</ItemsPanelTemplate>
+						</ItemsControl.ItemsPanel>
+						<ItemsControl.ItemTemplate>
+							<DataTemplate x:DataType="vm:NewProjectViewModel+DataStructureCard">
+								<Button Background="Transparent"
+										BorderThickness="0"
+										Padding="0"
+										Margin="0,12,24,12"
+										HorizontalAlignment="Stretch"
+										VerticalAlignment="Stretch"
+										HorizontalContentAlignment="Stretch"
+										VerticalContentAlignment="Stretch"
+										Command="{Binding $parent[ItemsControl].((vm:NewProjectViewModel)DataContext).SelectCardCommand}"
+										CommandParameter="{Binding}"
+										Cursor="Hand">
+
+									<Border Background="#2D2D2D"
+											CornerRadius="8"
+											Padding="16"
+											MinHeight="120"
+											BorderThickness="2"
+											HorizontalAlignment="Stretch">
+
+										<Border.BorderBrush>
+											<SolidColorBrush Color="{Binding IsSelected, Converter={StaticResource BoolToColorConverter}}"/>
+										</Border.BorderBrush>
+										<StackPanel Spacing="8">
+											<TextBlock Text="{Binding Title}"
+													   FontSize="16"
+													   FontWeight="SemiBold"
+													   Foreground="White"/>
+											<TextBlock Text="{Binding Description}"
+													   FontSize="13"
+													   Foreground="#AAAAAA"
+													   TextWrapping="Wrap"/>
+										</StackPanel>
+									</Border>
+								</Button>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+
+					<TextBlock Text="{Binding DataStructureError}"
+							   FontSize="13"
+							   Foreground="#FF5555"
+							   TextWrapping="Wrap"/>
+				</StackPanel>
+			</Grid>
+		</Grid>
+
+		<Border Grid.Row="2" Padding="30,20">
+			<StackPanel Orientation="Vertical">
+				<StackPanel Orientation="Horizontal"
+							HorizontalAlignment="Right"
+							Spacing="12">
+
+					<Button Classes="footer-button"
+							Content="Назад"
+							MinWidth="130"
+							MinHeight="36"
+							HorizontalContentAlignment="Center"
+							VerticalContentAlignment="Center"
+							Command="{Binding BackToHomeCommand}"/>
+
+					<Button Classes="footer-button"
+							Content="Създай проект"
+							MinWidth="150"
+							MinHeight="36"
+							HorizontalContentAlignment="Center"
+							VerticalContentAlignment="Center"
+							Command="{Binding CreateProjectCommand}"/>
+				</StackPanel>
+			</StackPanel>
+		</Border>
+
+		<controls:CreditsFooter Grid.Row="3" />
+	</Grid>
+</UserControl>
