@@ -37,7 +37,7 @@ public static class CanvasOpLoggerIO
 
         var logger = new CanvasOpLogger();
 
-        string[] lines = body.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        string[] lines = body.Split(["\r\n", "\r", "\n"], StringSplitOptions.RemoveEmptyEntries);
 
         List<ICanvasOp> currentOps = [];
 
