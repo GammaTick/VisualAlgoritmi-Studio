@@ -88,12 +88,22 @@ VisualAlgoritmi Studio е десктоп приложение, предназн�
 
 ---
 
-## ▶️ Стартиране
+## 🛠️ Компилиране и стартиране от сорс код
 
-1. Отворете `.sln` файла с Visual Studio
-2. Изберете startup проект
-3. Стартирайте (F5)
+Изисквания
 
+Преди стартиране е необходимо да бъдат инсталирани:
+
+Visual Studio 2022 или по-нова версия
+.NET SDK (версията, използвана от проекта)
+Работен пакет .NET Desktop Development
+Стъпки за стартиране
+1. Клонирайте или изтеглете сорс кода на проекта.
+2. Отворете файла VisualAlgoritmi Studio.sln с Visual Studio.
+3. Изберете проекта VisualAlgoritmi Studio като Startup Project.
+4. Изчакайте възстановяването на NuGet пакетите.
+5. Компилирайте проекта чрез Build → Build Solution (Ctrl + Shift + B).
+6. Стартирайте приложението чрез Debug → Start Debugging (F5) или Start Without Debugging (Ctrl + F5).
 ---
 
 ## ⚠️ Забележки
