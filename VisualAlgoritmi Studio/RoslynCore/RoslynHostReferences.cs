@@ -67,6 +67,10 @@ namespace VisualAlgoritmi_Studio.RoslynCore
 
             AddReferenceIfExists(typeof(RoslynHost).Assembly.Location);
 
+            AddReferenceIfExists(Path.Combine(
+                AppContext.BaseDirectory,
+                "VisualAlgoritmi.Runtime.dll"));
+
             return references;
         }
 

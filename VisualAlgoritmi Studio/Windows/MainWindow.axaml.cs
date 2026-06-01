@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 
 namespace VisualAlgoritmi_Studio.Views
@@ -7,6 +8,24 @@ namespace VisualAlgoritmi_Studio.Views
         public MainWindow()
         {
             InitializeComponent();
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property != WindowStateProperty)
+            {
+                return;
+            }
+
+            if (WindowState == WindowState.Minimized)
+            {
+                return;
+            }
+
+            App.Settings.StartWindowMaximized = WindowState == WindowState.Maximized;
+            App.Settings.Save();
         }
     }
 }

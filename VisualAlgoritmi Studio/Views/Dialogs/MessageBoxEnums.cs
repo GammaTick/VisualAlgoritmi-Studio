@@ -20,6 +20,6 @@ public enum MessageBoxResult
 public enum MessageBoxIcon
 {
     None,
-    Critical,
+    Error,
     Warning,
 }

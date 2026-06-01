@@ -1,0 +1,35 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Linq;
+using System.IO;
+
+internal class Program
+{
+    static void Main(string[] args)
+    {
+        Queue<string> queue = new Queue<string>();
+        
+        queue.Enqueue("First");
+        queue.Enqueue("Second");
+        queue.Enqueue("Third");
+        queue.Enqueue("Fourth");
+        queue.Enqueue("Fifth");
+        
+        int elementsCount = queue.Count;
+        
+        for (int i = 0; i < elementsCount; i++)
+        {
+            queue.Dequeue();   
+        }
+
+        queue.Enqueue("Sixth");
+        queue.Enqueue("Seventh");
+
+        queue.Clear();
+    }
+}

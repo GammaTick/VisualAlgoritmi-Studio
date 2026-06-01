@@ -1,40 +1,37 @@
 ﻿using Avalonia.Controls;
-using CommunityToolkit.Mvvm.Input;
-using System;
-using System.Windows.Input;
-using VisualAlgoritmi_Studio.Controls.Editor;
-using VisualAlgoritmi_Studio.ProjectCore;
-using VisualAlgoritmi_Studio.RoslynCore;
-using VisualAlgoritmi_Studio.Visualization;
-using VisualAlgoritmi_Studio.Config;
-using VisualAlgoritmi_Studio.Controls.Canvas.Core;
-using VisualAlgoritmi_Studio.Controls.Canvas.Registry;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.List;
-using System.IO;
-using System.Threading.Tasks;
-using System.Collections.ObjectModel;
-using VisualAlgoritmi_Studio.Models;
-using Microsoft.CodeAnalysis;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.ArrayList;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.LinkedList;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.Queue;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.Stack;
-using VisualAlgoritmi_Studio.Controls.Console;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.CodeAnalysis;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using VisualAlgoritmi_Studio.Canvas.Operations;
+using VisualAlgoritmi_Studio.Compilation;
+using VisualAlgoritmi_Studio.Controls.Canvas.Canvases;
+using VisualAlgoritmi_Studio.Controls.Canvas.Core;
+using VisualAlgoritmi_Studio.Controls.Canvas.Operations;
+using VisualAlgoritmi_Studio.Controls.Console;
+using VisualAlgoritmi_Studio.Controls.Editor;
+using VisualAlgoritmi_Studio.Execution;
+using VisualAlgoritmi_Studio.Execution.BinaryPipeline;
+using VisualAlgoritmi_Studio.Models;
+using VisualAlgoritmi_Studio.ProjectCore;
+using VisualAlgoritmi_Studio.RoslynCore;
+using VisualAlgoritmi_Studio.RoslynCore.Metadata;
 using VisualAlgoritmi_Studio.Views.Dialogs;
-using System.Linq;
+using VisualAlgoritmi_Studio.Visualization;
 
 namespace VisualAlgoritmi_Studio.ViewModels
 {
-    internal class VisualizationViewModel : ViewModelBase, IDisposable
+    internal class VisualizationViewModel : ViewModelBase
     {
-        public readonly string InitialCode;
-
         public ICommand GoHomeCommand { get; }
         public ICommand SaveCodeCommand { get; }
         public ICommand UndoCommand { get; }
@@ -59,31 +56,13 @@ namespace VisualAlgoritmi_Studio.ViewModels
         public ICommand ExportCodeCommand { get; }
         public ICommand LoadExampleCodeCommand { get; }
 
-        private readonly MainWindowViewModel _main;
-        private readonly ProjectManager _projectManager;
-        private readonly Settings _settings;
-        private IClipboard? _clipboard;
-        private readonly VisualizedDataStructure _visualizedDataStructure;
+        public ObservableCollection<EditorError> Errors { get; } = [];
 
-        private readonly DataStructureMetadata _dataStructureMetadata;
-        private readonly VisualizerCanvasBase _visualizerCanvas;
-        private readonly ConsoleRedirectWriter _consoleRedirectWriter;
-        private readonly ConsoleRedirectReader _consoleRedirectReader;
+        public string RunButtonText => IsCodeRunning ? "Спри" : "Изпълни";
 
-        private Compiler? _compiler;
-        private CodeEditor? _codeEditor;
-        private ConsoleControl? _consoleControl;
-        private IStorageProvider? _storageProvider;
-        private bool _disposed;
-        private bool _isExecuting;
-        private LayoutMode _layoutMode = LayoutMode.Normal;
-        private BottomPanelMode _bottomPanelMode = BottomPanelMode.ErrorList;
-        private string _executionStatusText = "Не се изпълнява";
-        private DispatcherTimer? _executionTimer;
-        private DateTime _executionStartTime;
-        private bool _hasUnsavedChanges;
-
-        public ObservableCollection<EditorError> Errors { get; } = new();
+        public string RunButtonIcon => IsCodeRunning
+            ? "avares://VisualAlgoritmi_Studio/Assets/Icons/stop-execution.svg"
+            : "avares://VisualAlgoritmi_Studio/Assets/Icons/run-code.svg";
 
         public bool HasUnsavedChanges
         {
@@ -138,8 +117,6 @@ namespace VisualAlgoritmi_Studio.ViewModels
         public bool IsErrorListSelected => _bottomPanelMode == BottomPanelMode.ErrorList;
         public bool IsOutputSelected => _bottomPanelMode == BottomPanelMode.Output;
 
-        public string RunButtonText => "Изпълни кода";
-        public string RunButtonIcon => "/Assets/Icons/run-code.svg";
         public string SelectedDataStructureName => GetDataStructureDisplayName(_visualizedDataStructure);
 
         public string ExecutionStatusText
@@ -147,6 +124,7 @@ namespace VisualAlgoritmi_Studio.ViewModels
             get => _executionStatusText;
             private set => SetProperty(ref _executionStatusText, value);
         }
+        public bool IsCodeRunning => _codeExecutionState == CodeExecutionState.Running;
 
         public string CurrentStepValueText =>
             $" {(_visualizerCanvas.CurrentStep + 1).ToString("#,0", CultureInfo.InvariantCulture).Replace(",", " ")} / {_visualizerCanvas.StepCount.ToString("#,0", CultureInfo.InvariantCulture).Replace(",", " ")}";
@@ -173,62 +151,48 @@ namespace VisualAlgoritmi_Studio.ViewModels
             get => _visualizerCanvas;
         }
 
-        private static string GetDataStructureDisplayName(VisualizedDataStructure dataStructure)
-        {
-            return dataStructure switch
-            {
-                VisualizedDataStructure.ArrayList => "ArrayList<T>",
-                VisualizedDataStructure.List => "List<T>",
-                VisualizedDataStructure.LinkedList => "LinkedList<T>",
-                VisualizedDataStructure.Queue => "Queue<T>",
-                VisualizedDataStructure.Stack => "Stack<T>",
-                _ => dataStructure.ToString()
-            };
-        }
+        private readonly MainWindowViewModel _main;
+        private readonly ProjectCore.Project _projectManager;
+        private IClipboard? _clipboard;
+        private readonly VisualizedDataStructure _visualizedDataStructure;
 
-        public VisualizationViewModel(MainWindowViewModel main,
-            ProjectManager projectManager,
-            VisualizedDataStructure visualizedDataStructure,
-            Settings settings)
+        private readonly DataStructureMetadata _dataStructureMetadata;
+        private readonly VisualizerCanvasBase _visualizerCanvas;
+
+        private readonly CanvasOperationBinaryPipeline _operationPipeline = new();
+
+        private CodeEditor? _codeEditor;
+        private ConsoleControl? _consoleControl;
+        private IStorageProvider? _storageProvider;
+        private LayoutMode _layoutMode = LayoutMode.Normal;
+        private BottomPanelMode _bottomPanelMode = BottomPanelMode.ErrorList;
+        private string _executionStatusText = "Не се изпълнява";
+        private DispatcherTimer? _executionTimer;
+        private DateTime _executionStartTime;
+        private bool _hasUnsavedChanges;
+        private CodeExecutionState _codeExecutionState = CodeExecutionState.Idle;
+        private bool _runnerConsoleEventsSubscribed;
+
+        private readonly UserCodeProcessRunner _userCodeProcessRunner = new();
+
+        public VisualizationViewModel(MainWindowViewModel main, ProjectCore.Project projectManager, VisualizedDataStructure visualizedDataStructure)
         {
             _main = main;
             _projectManager = projectManager;
-            _settings = settings;
             _visualizedDataStructure = visualizedDataStructure;
-
-            InitialCode = projectManager.GetUserCode();
 
             _dataStructureMetadata = DataStructureMetadataFactory.Create(visualizedDataStructure);
 
-            switch (visualizedDataStructure)
+            _visualizerCanvas = visualizedDataStructure switch
             {
-                case VisualizedDataStructure.ArrayList:
-                    _visualizerCanvas = new ArrayListCanvas();
-                    break;
+                VisualizedDataStructure.ArrayList => new ArrayListCanvas(),
+                VisualizedDataStructure.List => new ListCanvas(),
+                VisualizedDataStructure.LinkedList => new LinkedListCanvas(),
+                VisualizedDataStructure.Queue => new QueueCanvas(),
+                VisualizedDataStructure.Stack => new StackCanvas(),
 
-                case VisualizedDataStructure.List:
-                    _visualizerCanvas = new ListCanvas();
-                    break;
-
-                case VisualizedDataStructure.LinkedList:
-                    _visualizerCanvas = new LinkedListCanvas();
-                    break;
-
-                case VisualizedDataStructure.Queue:
-                    _visualizerCanvas = new QueueCanvas();
-                    break;
-
-                case VisualizedDataStructure.Stack:
-                    _visualizerCanvas = new StackCanvas();
-                    break;
-
-                default:
-                    throw new NotSupportedException($"Visualization for {visualizedDataStructure} is not supported.");
-            }
-
-            _consoleRedirectWriter = new ConsoleRedirectWriter();
-
-            _consoleRedirectReader = new ConsoleRedirectReader();
+                _ => throw new NotSupportedException($"Visualization for {visualizedDataStructure} is not supported."),
+            };
 
             GoHomeCommand = new AsyncRelayCommand(async () =>
             {
@@ -244,60 +208,16 @@ namespace VisualAlgoritmi_Studio.ViewModels
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    Dispose();
                     _main.CurrentViewModel = new HomeViewModel(_main);
                 }
             });
 
-            SaveCodeCommand = new RelayCommand(() =>
-            {
-                if (_codeEditor == null)
-                {
-                    return;
-                }
-                
-                SaveCode();
-            });
+            SaveCodeCommand = new AsyncRelayCommand(SaveUserCode);
 
-            UndoCommand = new RelayCommand(() =>
-            {
-                if (_codeEditor == null)
-                {
-                    return;
-                }
-
-                _codeEditor.UndoChange();
-            });
-
-            RedoCommand = new RelayCommand(() =>
-            {
-                if (_codeEditor == null)
-                {
-                    return;
-                }
-
-                _codeEditor.RedoChange();
-            });
-
-            CommentLinesCommand = new RelayCommand(() =>
-            {
-                if (_codeEditor == null)
-                {
-                    return;
-                }
-
-                _codeEditor.CommentOutSelectedLines();
-            });
-
-            UncommentLinesCommand = new RelayCommand(() =>
-            {
-                if (_codeEditor == null)
-                {
-                    return;
-                }
-
-                _codeEditor.UncommentSelectedLines();
-            });
+            UndoCommand = new RelayCommand(() => _codeEditor?.UndoChange());
+            RedoCommand = new RelayCommand(() => _codeEditor?.RedoChange());
+            CommentLinesCommand = new RelayCommand(() => _codeEditor?.CommentOutSelectedLines());
+            UncommentLinesCommand = new RelayCommand(() => _codeEditor?.UncommentSelectedLines());
 
             AdvanceStepCommand = new RelayCommand(() =>
             {
@@ -317,7 +237,9 @@ namespace VisualAlgoritmi_Studio.ViewModels
                 NotifyStepChanged();
             });
 
-            RunCodeCommand = new AsyncRelayCommand(RunCode);
+            RunCodeCommand = new AsyncRelayCommand(
+                RunCode,
+                AsyncRelayCommandOptions.AllowConcurrentExecutions);
 
             ShowEditorOnlyCommand = new RelayCommand(() => CurrentLayout = LayoutMode.EditorOnly);
             ShowNormalCommand = new RelayCommand(() => CurrentLayout = LayoutMode.Normal);
@@ -327,10 +249,7 @@ namespace VisualAlgoritmi_Studio.ViewModels
 
             ExportAnimationCommand = new AsyncRelayCommand(ExportAnimation);
 
-            ResetViewCommand = new RelayCommand(() =>
-            {
-                _visualizerCanvas.ResetView(); 
-            });
+            ResetViewCommand = new RelayCommand(() => _visualizerCanvas.ResetView());
 
             NavigateToErrorCommand = new RelayCommand<EditorError>(error =>
             {
@@ -359,16 +278,63 @@ namespace VisualAlgoritmi_Studio.ViewModels
             LoadExampleCodeCommand = new AsyncRelayCommand(LoadExampleCode);
 
             _visualizerCanvas.ViewChanged += OnCanvasViewChanged;
+            _visualizerCanvas.StepChanged += OnStepChanged;
         }
 
-        private void SaveCode()
+        private static string GetDataStructureDisplayName(VisualizedDataStructure dataStructure)
+        {
+            return dataStructure switch
+            {
+                VisualizedDataStructure.ArrayList => "ArrayList<T>",
+                VisualizedDataStructure.List => "List<T>",
+                VisualizedDataStructure.LinkedList => "LinkedList<T>",
+                VisualizedDataStructure.Queue => "Queue<T>",
+                VisualizedDataStructure.Stack => "Stack<T>",
+                _ => dataStructure.ToString()
+            };
+        }
+
+        private void OnCodeContentChanged(object? sender, EventArgs e)
+        {
+            HasUnsavedChanges = true;
+        }
+
+        private void OnStepChanged(object? sender, EventArgs e)
+        {
+            NotifyStepChanged();
+        }
+
+        private void NotifyStepChanged()
+        {
+            OnPropertyChanged(nameof(CurrentStepValueText));
+            OnPropertyChanged(nameof(CurrentOperationsText));
+            OnPropertyChanged(nameof(OperationsPrefixText));
+        }
+
+        private void OnCanvasViewChanged(object? sender, EventArgs e)
+        {
+            OnPropertyChanged(nameof(CanvasZoomText));
+            OnPropertyChanged(nameof(CanvasOffsetText));
+        }
+
+        private void SetCodeExecutionState(CodeExecutionState state)
+        {
+            if (SetProperty(ref _codeExecutionState, state))
+            {
+                OnPropertyChanged(nameof(IsCodeRunning));
+                OnPropertyChanged(nameof(RunButtonText));
+                OnPropertyChanged(nameof(RunButtonIcon));
+            }
+        }
+
+        private async Task SaveUserCode()
         {
             if (_codeEditor == null)
             {
                 return;
             }
 
-            _projectManager.SaveUserCode(_codeEditor.GetCode());
+            await _projectManager.SaveUserCodeAsync(_codeEditor.GetCode());
             HasUnsavedChanges = false;
         }
 
@@ -398,14 +364,14 @@ namespace VisualAlgoritmi_Studio.ViewModels
             using StreamReader reader = new(stream);
             string code = await reader.ReadToEndAsync();
 
-            await _codeEditor.SetCode(code);
+            _codeEditor.SetCode(code);
         }
 
         private void OpenLocation()
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = _projectManager.ProjectRootPath,
+                FileName = _projectManager.RootPath,
                 UseShellExecute = true
             });
         }
@@ -441,8 +407,8 @@ namespace VisualAlgoritmi_Studio.ViewModels
                 return;
             }
 
-            string exampleCode = _projectManager.GetExampleCode();
-            await _codeEditor.SetCode(exampleCode);
+            string exampleCode = await ProjectIO.GetExampleCodeAsync(_visualizedDataStructure);
+            _codeEditor.SetCode(exampleCode);
         }
 
         private async Task ExportCode()
@@ -475,173 +441,6 @@ namespace VisualAlgoritmi_Studio.ViewModels
             await writer.WriteAsync(code);
         }
 
-        private async Task RunCode()
-        {
-            if (_compiler == null || _codeEditor == null)
-            {
-                return;
-            }
-
-            if (_isExecuting)
-            {
-                return;
-            }
-
-            _isExecuting = true;
-
-            SaveCode();
-
-            CurrentBottomPanel = BottomPanelMode.Output;
-            Dispatcher.UIThread.Post(() =>
-            {
-                _consoleControl?.FocusConsole();
-            });
-
-            _consoleControl?.Clear();
-
-            VisualDataStructuresRegister.BeginExecution(_dataStructureMetadata.ReplacementTypeRuntimeType);
-
-            VisualDataStructuresRegister.RegisterCanvas(_visualizerCanvas);
-
-            VisualDataStructuresRegister.CloseCanvasRegistration();
-
-            _executionStartTime = DateTime.UtcNow;
-            ExecutionStatusText = "Изпълнява се… (0 сек)";
-            StartExecutionTimer();
-
-            try
-            {
-                var result = await _compiler.CompileAndRun();
-
-                StopExecutionTimer();
-
-                double elapsed = (DateTime.UtcNow - _executionStartTime).TotalSeconds;
-
-                if (result.FailureMessage != null || Errors.Count > 0)
-                {
-                    CurrentBottomPanel = BottomPanelMode.ErrorList;
-                }
-
-                if (result.UserException is { } ex)
-                {
-                    ExecutionStatusText = $"Завърши за {FormatElapsed(elapsed)} с изключение";
-
-                    string locationInfo = GetExceptionLocation(ex);
-
-                    string messageContent = 
-                        $"{ex.GetType().Name}: {ex.Message}{Environment.NewLine}" +
-                        $"{Environment.NewLine}" + 
-                        $"Stack Trace:{Environment.NewLine}{ex.StackTrace}{Environment.NewLine}" +
-                        Environment.NewLine + 
-                        $"{locationInfo}";
-
-                    await MessageBox.ShowAsync("Грешка при изпълнение",
-                        messageContent,
-                        MessageBoxButtons.OkCopy,
-                        MessageBoxIcon.Critical);
-                }
-                else
-                {
-                    ExecutionStatusText = $"Завърши за {FormatElapsed(elapsed)}";
-                }
-            }
-            catch (Exception ex)
-            {
-                StopExecutionTimer();
-                double elapsed = (DateTime.UtcNow - _executionStartTime).TotalSeconds;
-                ExecutionStatusText = $"Грешка в хоста ({FormatElapsed(elapsed)})";
-
-                // Since this is a system/host error, we want more technical detail 
-                // than just Row/Column, because the error isn't in the user's script.
-                string technicalDetails = ex.StackTrace ?? "Няма налична следа (Stack Trace).";
-
-                await MessageBox.ShowAsync("Системна грешка",
-                    $"Възникна неочаквана грешка в средата за изпълнение:{Environment.NewLine}{Environment.NewLine}" +
-                    $"{ex.GetType().Name}: {ex.Message}{Environment.NewLine}{Environment.NewLine}" +
-                    $"Технически детайли:{Environment.NewLine}{technicalDetails}",
-                    MessageBoxButtons.OkCopy,
-                    MessageBoxIcon.Critical);
-            }
-            finally
-            {
-                StopExecutionTimer();
-
-                VisualDataStructuresRegister.EndExecution();
-
-                foreach (var canvas in VisualDataStructuresRegister.GetRegisteredCanvases())
-                {
-                    canvas.OnExecutionEnded();
-                    canvas.ResetSteps();
-                }
-
-                NotifyStepChanged();
-
-                _isExecuting = false;
-            }
-        }
-
-        private static string FormatElapsed(double totalSeconds)
-        {
-            int whole = (int)totalSeconds;
-            int minutes = whole / 60;
-            int seconds = whole % 60;
-            return minutes > 0 ? $"{minutes} мин {seconds} сек" : $"{seconds} сек";
-        }
-
-        private void StartExecutionTimer()
-        {
-            _executionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _executionTimer.Tick += (_, _) =>
-            {
-                double elapsed = (DateTime.UtcNow - _executionStartTime).TotalSeconds;
-                ExecutionStatusText = $"Изпълнява се… ({FormatElapsed(elapsed)})";
-            };
-            _executionTimer.Start();
-        }
-
-        private void StopExecutionTimer()
-        {
-            _executionTimer?.Stop();
-            _executionTimer = null;
-        }
-
-        private void NotifyStepChanged()
-        {
-            OnPropertyChanged(nameof(CurrentStepValueText));
-            OnPropertyChanged(nameof(CurrentOperationsText));
-            OnPropertyChanged(nameof(OperationsPrefixText));
-        }
-
-        private static string GetExceptionLocation(Exception ex)
-        {
-            var st = new StackTrace(ex, true);
-            var frames = st.GetFrames();
-
-            // Find the first frame that actually has a file name (usually Code.cs)
-            var userFrame = frames?.FirstOrDefault(f => !string.IsNullOrEmpty(f.GetFileName()));
-
-            if (userFrame != null)
-            {
-                int lineNumber = userFrame.GetFileLineNumber();
-                int columnNumber = userFrame.GetFileColumnNumber();
-
-                // OFFSET ADJUSTMENT:
-                // Since the Rewrite() method adds 2 using directives at the top, 
-                // the reported line is 2 lines higher than what the user sees in the editor.
-                int offset = 2; 
-                int adjustedLine = Math.Max(1, lineNumber - offset);
-
-                return $"Местоположение: Ред {adjustedLine}, Колона {columnNumber}";
-            }
-
-            return "Местоположение: Не са налични детайли";
-        }
-        private void OnCanvasViewChanged(object? sender, EventArgs e)
-        {
-            OnPropertyChanged(nameof(CanvasZoomText));
-            OnPropertyChanged(nameof(CanvasOffsetText));
-        }
-
         private async Task ExportAnimation()
         {
             if (_storageProvider == null)
@@ -656,10 +455,13 @@ namespace VisualAlgoritmi_Studio.ViewModels
                     "Моля, изпълнете кода, преди да експортирате анимацията.",
                     MessageBoxButtons.Ok,
                     MessageBoxIcon.Warning);
+
                 return;
             }
 
-            if (_visualizerCanvas.StepCount == 0)
+            CanvasTimeline? canvasTimeline = _visualizerCanvas.Timeline;
+
+            if (_visualizerCanvas.StepCount == 0 || canvasTimeline == null)
             {
                 var confirmResult = await MessageBox.ShowAsync(
                     "Празна анимация",
@@ -692,8 +494,17 @@ namespace VisualAlgoritmi_Studio.ViewModels
                 return;
             }
 
-            string body = _visualizerCanvas.SerializeAnimation();
-            string header = $"DataStructure: {dataStructureName}{Environment.NewLine}";
+            string body = CanvasTimelineSerializer.Serialize(canvasTimeline);
+
+            string header =
+                $"FileFormatVersion:{AppInfo.AnimationFileFormatVersion}{Environment.NewLine}" +
+                $"AppVersion:{AppInfo.Version}{Environment.NewLine}" +
+                $"DataStructure:{dataStructureName}{Environment.NewLine}";
+
+            int headerLines = header.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length + 1;
+
+            header = header.Insert(0, $"HeaderLines:{headerLines}{Environment.NewLine}");
+
             string content = header + body;
 
             await using Stream stream = await file.OpenWriteAsync();
@@ -701,53 +512,390 @@ namespace VisualAlgoritmi_Studio.ViewModels
             await writer.WriteAsync(content);
         }
 
-        public void AttachStorageProvider(IStorageProvider storageProvider)
+        private async Task RunCode()
         {
-            _storageProvider = storageProvider;
+            if (_codeEditor == null)
+            {
+                return;
+            }
+
+            if (_codeEditor.HasErrors())
+            {
+                CurrentBottomPanel = BottomPanelMode.ErrorList;
+                return;
+            }
+
+            if (_codeExecutionState == CodeExecutionState.Running)
+            {
+                await StopRunningCodeAsync();
+                return;
+            }
+
+            if (_codeExecutionState is CodeExecutionState.Preparing
+                or CodeExecutionState.ForceStopped
+                or CodeExecutionState.Finalizing)
+            {
+                return;
+            }
+
+            SetCodeExecutionState(CodeExecutionState.Preparing);
+
+            try
+            {
+                var session = _codeEditor.CodeAnalysisSession;
+
+                session.FlushPendingSourceText();
+
+                await SaveUserCode();
+
+                EnsureConsoleConnectedToRunner();
+
+                _consoleControl?.Clear();
+
+                CurrentLayout = LayoutMode.Normal;
+                CurrentBottomPanel = BottomPanelMode.Output;
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _consoleControl?.FocusConsole();
+                }, DispatcherPriority.Background);
+
+                var rewrittenCompilation = await RewriteUserCode(session);
+
+                if (rewrittenCompilation == null)
+                {
+                    return;
+                }
+
+                ExecutionStatusText = "Компилира се…";
+
+                var compileResult = await CompileUserCode(rewrittenCompilation);
+
+                if (!compileResult.IsSuccess)
+                {
+                    return;
+                }
+
+                await DisposeOperationPipelineIfOpenAsync();
+
+                string pipelineName = _operationPipeline.Open();
+
+                Task<MemoryStream> captureTask = _operationPipeline.CaptureToMemoryStreamAsync();
+
+                SetCodeExecutionState(CodeExecutionState.Running);
+
+                _consoleControl?.BeginSession();
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _consoleControl?.FocusConsole();
+                }, DispatcherPriority.Background);
+
+                StartExecutionTimer();
+
+                var executionResult = await _userCodeProcessRunner.RunAsync(
+                    compileResult.AssemblyPath!,
+                    pipelineName);
+
+                StopExecutionTimer();
+
+                if (!executionResult.IsSuccess)
+                {
+                    await HandleNonSuccessfulExecutions(executionResult);
+                    return;
+                }
+
+                SetCodeExecutionState(CodeExecutionState.Finalizing);
+
+                using MemoryStream operationStream = await captureTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+                operationStream.Position = 0;
+
+                OperationBinaryPipelineReader reader = new(operationStream, _visualizedDataStructure);
+                CanvasTimeline timeline = reader.ReadAllOperations();
+
+                _visualizerCanvas.LoadTimelineAndResetView(timeline);
+                _visualizerCanvas.ResetSteps();
+
+                NotifyStepChanged();
+            }
+            catch (Exception ex) when (_codeExecutionState == CodeExecutionState.ForceStopped && IsExpectedStopException(ex))
+            {
+                ExecutionStatusText = "Изпълнението беше спряно.";
+            }
+            catch (Exception ex)
+            {
+                ExecutionStatusText = "Грешка в хоста";
+
+                await MessageBox.ShowAsync(
+                    "Грешка при изпълнение",
+                    $"Възникна грешка при изпълнение на кода: {ex.Message}",
+                    MessageBoxButtons.OkCopy,
+                    MessageBoxIcon.Error);
+            }
+            finally
+            {
+                StopExecutionTimer();
+
+                _consoleControl?.EndSession();
+
+                if (_codeExecutionState == CodeExecutionState.ForceStopped)
+                {
+                    ExecutionStatusText = "Изпълнението беше спряно.";
+                }
+
+                await DisposeOperationPipelineIfOpenAsync();
+
+                SetCodeExecutionState(CodeExecutionState.Idle);
+            }
         }
 
-        public void AttachClipboard(IClipboard clipboard)
+        private void EnsureConsoleConnectedToRunner()
         {
-            _clipboard = clipboard;
+            if (!_runnerConsoleEventsSubscribed)
+            {
+                _runnerConsoleEventsSubscribed = true;
+
+                _userCodeProcessRunner.StandardOutputReceived += text =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        _consoleControl?.AppendOutput(text);
+                    });
+                };
+
+                _userCodeProcessRunner.StandardErrorReceived += text =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        _consoleControl?.AppendError(text);
+                    });
+                };
+            }
+
+            if (_consoleControl != null)
+            {
+                _consoleControl.InputSubmittedAsync =
+                    _userCodeProcessRunner.SendStandardInputLineAsync;
+            }
+        }
+
+        private static bool IsExpectedStopException(Exception exception)
+        {
+            return exception is IOException
+                or ObjectDisposedException
+                or TimeoutException
+                or OperationCanceledException;
+        }
+
+        private async Task StopRunningCodeAsync()
+        {
+            if (_codeExecutionState != CodeExecutionState.Running)
+            {
+                return;
+            }
+
+            SetCodeExecutionState(CodeExecutionState.ForceStopped);
+
+            StopExecutionTimer();
+
+            ExecutionStatusText = "Спиране…";
+
+            await _userCodeProcessRunner.StopAsync();
+        }
+
+        private async Task<Microsoft.CodeAnalysis.Compilation?> RewriteUserCode(CodeAnalysisSession session)
+        {
+            Document? document = session.GetDocument();
+
+            if (document is null)
+            {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    "Документът с кода не беше намерен.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
+                return null;
+            }
+
+            Microsoft.CodeAnalysis.Compilation? compilation = await document.Project.GetCompilationAsync();
+
+            if (compilation is null)
+            {
+                await MessageBox.ShowAsync(
+                    "Грешка при компилация",
+                    "Компилацията не можа да бъде създадена.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
+                return null;
+            }
+
+            SyntaxTree? syntaxTree = await document.GetSyntaxTreeAsync();
+
+            if (syntaxTree is null)
+            {
+                await MessageBox.ShowAsync(
+                    "Грешка при компилация",
+                    "Синтактичното дърво не беше намерено.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
+                return null;
+            }
+
+            return await Rewriting.UserCodeRewriter.RewriteAsync(
+                document,
+                compilation,
+                syntaxTree,
+                _dataStructureMetadata);
+        }
+
+        private async Task<CompileResult> CompileUserCode(Microsoft.CodeAnalysis.Compilation rewrittenCompilation)
+        {
+            CompileResult compileResult = await Compiler.CompileToDll(rewrittenCompilation);
+
+            if (!compileResult.IsSuccess)
+            {
+                ExecutionStatusText = "Компилацията не беше успешна.";
+
+                string errorMessage = compileResult.FailureMessage ?? "Компилацията не беше успешна.";
+
+                if (compileResult.Diagnostics.Length > 0)
+                {
+                    errorMessage += Environment.NewLine
+                        + Environment.NewLine
+                        + string.Join(Environment.NewLine, compileResult.Diagnostics);
+                }
+
+                await MessageBox.ShowAsync(
+                    "Грешка при компилация",
+                    errorMessage,
+                    MessageBoxButtons.OkCopy,
+                    MessageBoxIcon.Error);
+            }
+
+            return compileResult;
+        }
+
+        private async Task DisposeOperationPipelineIfOpenAsync()
+        {
+            if (_operationPipeline.IsOpen)
+            {
+                await _operationPipeline.DisposeAsync();
+            }
+        }
+
+        private async Task HandleNonSuccessfulExecutions(UserCodeExecutionResult executionResult)
+        {
+            double elapsed = (DateTime.UtcNow - _executionStartTime).TotalSeconds;
+
+            if (_codeExecutionState == CodeExecutionState.ForceStopped)
+            {
+                ExecutionStatusText = $"Изпълнението беше спряно ({FormatElapsed(elapsed)})";
+                return;
+            }
+
+            if (executionResult.Status == UserCodeExecutionStatus.FailedToStart)
+            {
+                ExecutionStatusText = $"Не можа да стартира ({FormatElapsed(elapsed)})";
+
+                string errorMessage =
+                    !string.IsNullOrWhiteSpace(executionResult.StandardError)
+                        ? executionResult.StandardError
+                        : executionResult.FailureMessage ?? "Програмата не можа да бъде стартирана.";
+
+                await MessageBox.ShowAsync(
+                    "Грешка при стартиране",
+                    errorMessage,
+                    MessageBoxButtons.OkCopy,
+                    MessageBoxIcon.Error);
+
+                return;
+            }
+
+            if (executionResult.Status == UserCodeExecutionStatus.RuntimeError)
+            {
+                ExecutionStatusText = $"Завърши за {FormatElapsed(elapsed)} с грешка";
+
+                string errorMessage =
+                    !string.IsNullOrWhiteSpace(executionResult.StandardError)
+                        ? executionResult.StandardError
+                        : executionResult.FailureMessage ?? "Възникна грешка по време на изпълнение.";
+
+                await MessageBox.ShowAsync(
+                    "Грешка при изпълнение",
+                    errorMessage,
+                    MessageBoxButtons.OkCopy,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void StartExecutionTimer()
+        {
+            _executionTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(100)
+            };
+
+            _executionStartTime = DateTime.UtcNow;
+
+            ExecutionStatusText = $"Изпълнява се… ({FormatElapsed(0)})";
+
+            _executionTimer.Tick += (_, _) =>
+            {
+                double elapsed = (DateTime.UtcNow - _executionStartTime).TotalSeconds;
+                ExecutionStatusText = $"Изпълнява се… ({FormatElapsed(elapsed)})";
+            };
+
+            _executionTimer.Start();
+        }
+
+        private static string FormatElapsed(double totalSeconds)
+        {
+            TimeSpan elapsed = TimeSpan.FromSeconds(totalSeconds);
+
+            int minutes = (int)elapsed.TotalMinutes;
+            int seconds = elapsed.Seconds;
+            int milliseconds = elapsed.Milliseconds;
+
+            if (minutes > 0)
+            {
+                return $"{minutes} мин {seconds} сек {milliseconds} ms";
+            }
+
+            if (seconds > 0)
+            {
+                return $"{seconds} сек {milliseconds} ms";
+            }
+
+            return $"{milliseconds} ms";
+        }
+
+        private void StopExecutionTimer()
+        {
+            _executionTimer?.Stop();
+            _executionTimer = null;
         }
 
         public async Task AttachCodeEditor(CodeEditor codeEditor)
         {
             _codeEditor = codeEditor;
 
-            _compiler = new Compiler(codeEditor.CodeAnalysisSession,
-                _consoleRedirectWriter,
-                _consoleRedirectReader,
-                _dataStructureMetadata);
+            string initialCode = await _projectManager.GetUserCodeAsync();
+            _codeEditor.SetCode(initialCode);
 
-            await codeEditor.SetCode(InitialCode);
             codeEditor.DiagnosticsUpdated += DiagnosticsUpdated;
             codeEditor.CodeContentChanged += OnCodeContentChanged;
         }
 
-        private void OnCodeContentChanged(object? sender, EventArgs e)
-        {
-            HasUnsavedChanges = true;
-        }
-
-        public void AttachConsoleControl(ConsoleControl consoleControl)
-        {
-            _consoleControl = consoleControl;
-            consoleControl.SetWriter(_consoleRedirectWriter);
-            consoleControl.SetReader(_consoleRedirectReader);
-        }
-
-        private void DiagnosticsUpdated(List<Diagnostic> diagnostics)
+        private void DiagnosticsUpdated(IReadOnlyList<Diagnostic> diagnostics)
         {
             Errors.Clear();
 
             foreach (var diagnostic in diagnostics)
             {
-                if (diagnostic.Severity != DiagnosticSeverity.Error)
-                {
-                    continue;
-                }
-
                 var span = diagnostic.Location.GetLineSpan();
 
                 int line = span.StartLinePosition.Line + 1;
@@ -762,26 +910,19 @@ namespace VisualAlgoritmi_Studio.ViewModels
             }
         }
 
-        public void Dispose()
+        public void AttachConsoleControl(ConsoleControl consoleControl)
         {
-            if (_disposed)
-            {
-                return;
-            }
+            _consoleControl = consoleControl;
+        }
 
-            StopExecutionTimer();
-            _consoleRedirectReader.CancelPendingRead();
+        public void AttachStorageProvider(IStorageProvider storageProvider)
+        {
+            _storageProvider = storageProvider;
+        }
 
-            if (_codeEditor != null)
-            {
-                _codeEditor.DiagnosticsUpdated -= DiagnosticsUpdated;
-                _codeEditor.CodeContentChanged -= OnCodeContentChanged;
-            }
-
-            _visualizerCanvas.ViewChanged -= OnCanvasViewChanged;
-            _visualizerCanvas?.Dispose();
-
-            _disposed = true;
+        public void AttachClipboard(IClipboard clipboard)
+        {
+            _clipboard = clipboard;
         }
     }
 
@@ -796,5 +937,14 @@ namespace VisualAlgoritmi_Studio.ViewModels
     { 
         ErrorList,
         Output
+    }
+
+    internal enum CodeExecutionState
+    {
+        Idle,
+        Preparing,
+        Running,
+        ForceStopped,
+        Finalizing
     }
 }

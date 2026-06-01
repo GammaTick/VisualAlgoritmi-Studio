@@ -6,6 +6,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <AssemblyName>VisualAlgoritmi_Studio</AssemblyName>
+	<Version>2.0.0</Version>
+	<AssemblyVersion>2.0.0.0</AssemblyVersion>
+	<FileVersion>2.0.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app-logo.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -15,28 +18,24 @@
     <AvaloniaResource Include="Assets\**" />
 	<AvaloniaResource Include="Assets\Styles\**" />
   </ItemGroup>
-
+  
   <ItemGroup>
-    <None Remove="ProjectCore\QueueExampleUsageTemplate.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="ProjectCore\ConsoleAppTemplate.txt">
+    <Content Include="ProjectCore\Templates\ConsoleAppTemplate.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="ProjectCore\QueueExampleUsageTemplate.txt">
+    <Content Include="ProjectCore\Templates\QueueExampleUsageTemplate.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="ProjectCore\StackExampleUsageTemplate.txt">
+    <Content Include="ProjectCore\Templates\StackExampleUsageTemplate.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="ProjectCore\ListExampleUsageTemplate.txt">
+    <Content Include="ProjectCore\Templates\ListExampleUsageTemplate.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="ProjectCore\ArrayListExampleUsageTemplate.txt">
+    <Content Include="ProjectCore\Templates\ArrayListExampleUsageTemplate.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="ProjectCore\LinkedListExampleUsageTemplate.txt">
+    <Content Include="ProjectCore\Templates\LinkedListExampleUsageTemplate.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -58,4 +57,44 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Features" Version="5.3.0" />
     <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.3" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisualAlgoritmi.Runtime\VisualAlgoritmi.Runtime.csproj" />
+  </ItemGroup>
+  
+  <Target Name="BuildAndCopyUserCodeRunner" AfterTargets="Build">
+	  <MSBuild
+		Projects="..\UserCodeRunner\UserCodeRunner.csproj"
+		Targets="Build"
+		Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier)" />
+
+	  <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+		<UserCodeRunnerBuildFiles Include="..\UserCodeRunner\bin\$(Configuration)\$(TargetFramework)\**\*" />
+	  </ItemGroup>
+
+	  <ItemGroup Condition="'$(RuntimeIdentifier)' != ''">
+		<UserCodeRunnerBuildFiles Include="..\UserCodeRunner\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\**\*" />
+	  </ItemGroup>
+
+	  <Copy
+		SourceFiles="@(UserCodeRunnerBuildFiles)"
+		DestinationFiles="@(UserCodeRunnerBuildFiles->'$(OutDir)UserCodeRunner\%(RecursiveDir)%(Filename)%(Extension)')"
+		SkipUnchangedFiles="true" />
+	</Target>
+
+	<Target Name="PublishAndCopyUserCodeRunner" AfterTargets="Publish">
+	  <MSBuild
+		Projects="..\UserCodeRunner\UserCodeRunner.csproj"
+		Targets="Publish"
+		Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)" />
+
+	  <ItemGroup>
+		<UserCodeRunnerPublishFiles Include="..\UserCodeRunner\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\**\*" />
+	  </ItemGroup>
+
+	  <Copy
+		SourceFiles="@(UserCodeRunnerPublishFiles)"
+		DestinationFiles="@(UserCodeRunnerPublishFiles->'$(PublishDir)UserCodeRunner\%(RecursiveDir)%(Filename)%(Extension)')"
+		SkipUnchangedFiles="true" />
+	</Target>
 </Project>

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using VisualAlgoritmi_Studio.Controls.Editor.CursorState;
 using VisualAlgoritmi_Studio.Controls.Editor.Text;
@@ -172,16 +171,6 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.Viewport
             return true;
         }
 
-        public static bool IsDocumentLineVisible(int line, (int firstVisibleLineIndex, int lastVisibleLineIndex) cachedVisibleRange)
-        {
-            if (line < cachedVisibleRange.firstVisibleLineIndex || line > cachedVisibleRange.lastVisibleLineIndex)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
         public void EnsureCaretIsVisible(CaretController caretController)
         {
             double lineHeight = _codeEditor.GetLineHeight();
@@ -215,22 +204,6 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.Viewport
             }
 
             ScrollY = newScrollY;
-            InvalidateVisibleRange();
-            IncreaseVersion();
-        }
-
-        public void ScrollByLines(int lines)
-        {
-            double lineHeight = _codeEditor.GetLineHeight();
-            double maxScrollY = _codeEditor.MaxScrollY;
-
-            if (maxScrollY <= 0)
-            {
-                return;
-            }
-
-            ScrollY = Math.Clamp(ScrollY + lines * lineHeight, 0, maxScrollY);
-
             InvalidateVisibleRange();
             IncreaseVersion();
         }

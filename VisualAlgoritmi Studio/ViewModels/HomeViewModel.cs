@@ -10,14 +10,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using VisualAlgoritmi_Studio.Config;
+using VisualAlgoritmi_Studio.Models;
 using VisualAlgoritmi_Studio.ProjectCore;
-using VisualAlgoritmi_Studio.RoslynCore;
 using VisualAlgoritmi_Studio.Views.Dialogs;
 using VisualAlgoritmi_Studio.Visualization;
 
 namespace VisualAlgoritmi_Studio.ViewModels
 {
-    internal class HomeViewModel : ViewModelBase, IDisposable
+    internal class HomeViewModel : ViewModelBase
     {
         private readonly MainWindowViewModel _main;
         private readonly Settings _settings;
@@ -39,6 +39,7 @@ namespace VisualAlgoritmi_Studio.ViewModels
             _settings.Save();
 
             RecentProjects = [];
+
             RecentProjects.CollectionChanged += (_, _) =>
             {
                 OnPropertyChanged(nameof(HasRecentProjects));
@@ -53,24 +54,10 @@ namespace VisualAlgoritmi_Studio.ViewModels
 
             LoadRecentProjects();
 
-            _pathCheckTimer = new Timer(_ => CheckProjectPathsExist(), null,
-                TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
-        }
-
-        private void CheckProjectPathsExist()
-        {
-            var missing = RecentProjects
-                .Where(card => !Directory.Exists(card.ProjectPath))
-                .ToList();
-
-            if (missing.Count == 0)
-                return;
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                foreach (var card in missing)
-                    RemoveProjectFromList(card.ProjectPath);
-            });
+            _pathCheckTimer = new Timer(_ => CheckProjectPathsExist(),
+                null,
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(2));
         }
 
         private void LoadRecentProjects()
@@ -82,49 +69,49 @@ namespace VisualAlgoritmi_Studio.ViewModels
                 return;
             }
 
-            var projectCards = _settings.RecentProjectPaths
+            var cards = _settings.RecentProjectPaths
                 .Where(Directory.Exists)
-                .Select(projectPath =>
-                {
-                    try
-                    {
-                        string configPath = Path.Combine(projectPath, ProjectManager.ProjectConfigFileName);
+                .Select(TryCreateRecentProjectCard)
+                .OfType<RecentProjectCard>()
+                .OrderByDescending(card => card.LastOpened);
 
-                        if (!File.Exists(configPath))
-                        {
-                            return null;
-                        }
-
-                        string json = File.ReadAllText(configPath);
-                        var config = JsonSerializer.Deserialize<ProjectManager.ProjectConfig>(json);
-
-                        if (config == null)
-                        {
-                            return null;
-                        }
-
-                        return new RecentProjectCard(
-                            config.ProjectName,
-                            projectPath,
-                            config.LastTimeOpened,
-                            (VisualizedDataStructure)config.ProjectType,
-                            ConfirmAndRemoveProjectFromList
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        Trace.WriteLine($"Failed to load project at {projectPath}: {ex.Message}");
-                        return null;
-                    }
-                })
-                .Where(card => card != null)
-                .Cast<RecentProjectCard>()
-                .OrderByDescending(card => card.LastOpened)
-                .ToList();
-
-            foreach (var card in projectCards)
+            foreach (var card in cards)
             {
                 RecentProjects.Add(card);
+            }
+        }
+
+        private RecentProjectCard? TryCreateRecentProjectCard(string projectPath)
+        {
+            try
+            {
+                string configPath = Path.Combine(projectPath, ProjectIO.ProjectConfigFileName);
+
+                if (!File.Exists(configPath))
+                {
+                    return null;
+                }
+
+                string json = File.ReadAllText(configPath);
+                var config = JsonSerializer.Deserialize<ProjectIO.ProjectConfig>(json);
+
+                if (config == null)
+                {
+                    return null;
+                }
+
+                return new RecentProjectCard(
+                    config.ProjectName,
+                    projectPath,
+                    config.LastTimeOpened,
+                    (VisualizedDataStructure)config.ProjectType,
+                    ConfirmAndRemoveProjectFromList
+                );
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Failed to load project at {projectPath}: {ex.Message}");
+                return null;
             }
         }
 
@@ -137,113 +124,161 @@ namespace VisualAlgoritmi_Studio.ViewModels
                 MessageBoxIcon.None);
 
             if (result != MessageBoxResult.Yes)
+            {
                 return;
+            }
 
             RemoveProjectFromList(path);
         }
 
-        private void RemoveProjectFromList(string path)
+        private void CheckProjectPathsExist()
         {
-            var card = RecentProjects.FirstOrDefault(c => c.ProjectPath == path);
+            var missing = RecentProjects
+                .Where(card => !Directory.Exists(card.ProjectPath))
+                .ToList();
+
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var card in missing)
+                {
+                    RemoveProjectFromList(card.ProjectPath);
+                }
+            });
+        }
+
+        private void RemoveProjectFromList(string pathToRemove)
+        {
+            var card = RecentProjects.FirstOrDefault(c => c.ProjectPath == pathToRemove);
 
             if (card != null) 
             {
                 RecentProjects.Remove(card);
             }
 
-            _settings.RecentProjectPaths.RemoveAll(p =>
-                string.Equals(
-                    p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                    path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                    StringComparison.OrdinalIgnoreCase));
+            _settings.RecentProjectPaths.RemoveAll(p => string.Equals(NormalizePath(p), NormalizePath(pathToRemove),
+                StringComparison.OrdinalIgnoreCase));
 
             _settings.Save();
         }
 
+        private static string NormalizePath(string path)
+        {
+            return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
         private async Task LoadProjectFromDirectory(string? projectRootPath)
         {
-            if (string.IsNullOrEmpty(projectRootPath))
+            if (string.IsNullOrWhiteSpace(projectRootPath))
             {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    "Неуспешно зареждане на проект: пътят към проекта е празен.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
                 return;
             }
 
-            string configPath = Path.Combine(projectRootPath, ProjectManager.ProjectConfigFileName);
+            string configPath = Path.Combine(projectRootPath, ProjectIO.ProjectConfigFileName);
 
             await LoadProjectFromConfig(configPath);
         }
 
         public async Task LoadProjectFromConfig(string projectConfigFilePath)
         {
-            if (string.IsNullOrEmpty(projectConfigFilePath) || !File.Exists(projectConfigFilePath))
+            if (string.IsNullOrWhiteSpace(projectConfigFilePath))
             {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    "Неуспешно зареждане на проект: пътят към конфигурационния файл е празен.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
+                return;
+            }
+
+            if (!File.Exists(projectConfigFilePath))
+            {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    $"Неуспешно зареждане на проект: конфигурационният файл не съществува.{Environment.NewLine}{Environment.NewLine}{projectConfigFilePath}",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
                 return;
             }
 
             try
             {
-                ProjectManager projectManager = await ProjectManager.LoadProjectFromConfig(projectConfigFilePath);
+                Project projectManager = await ProjectIO.LoadProjectFromConfigAsync(projectConfigFilePath);
 
-                _main.CurrentViewModel = new VisualizationViewModel(_main, projectManager, projectManager.VisualizedDataStructure, _settings);
+                _main.CurrentViewModel = new VisualizationViewModel(
+                    _main,
+                    projectManager,
+                    projectManager.VisualizedDataStructure);
 
-                string projectRootPath = projectManager.ProjectRootPath;
+                string projectRootPath = projectManager.RootPath;
 
                 _settings.AddRecentProject(projectRootPath);
                 _settings.Save();
             }
             catch (Exception ex)
             {
-                await MessageBox.ShowAsync("Грешка", $"Неуспешно зареждане на проект: {ex.Message}",
-                    MessageBoxButtons.Ok, MessageBoxIcon.Critical);
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    $"Неуспешно зареждане на проект: {ex.Message}",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
             }
-        }
-
-        public void Dispose()
-        {
-            _pathCheckTimer.Dispose();
         }
 
         public async Task LoadAnimationFromFile(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            if (string.IsNullOrWhiteSpace(filePath))
             {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    "Неуспешно отваряне на анимация: пътят към файла е празен.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
+                return;
+            }
+
+            if (!File.Exists(filePath))
+            {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    $"Неуспешно отваряне на анимация: файлът не съществува.{Environment.NewLine}{Environment.NewLine}{filePath}",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
                 return;
             }
 
             try
             {
-                _main.CurrentViewModel = new AnimationPlaybackViewModel(_main, filePath);
+                AnimationPlaybackViewModel? vm = await AnimationPlaybackViewModel.CreateAsync(_main, filePath);
+
+                if (vm is null)
+                {
+                    return;
+                }
+
+                _main.CurrentViewModel = vm;
             }
             catch (Exception ex)
             {
-                await MessageBox.ShowAsync("Грешка", $"Неуспешно отваряне на анимация: {ex.Message}",
-                    MessageBoxButtons.Ok, MessageBoxIcon.Critical);
-            }
-        }
-
-        public class RecentProjectCard
-        {
-            public string ProjectName { get; }
-            public string ProjectPath { get; }
-            public DateTime LastOpened { get; }
-            public string LastOpenedFormatted { get; }
-            public string DataStructureType { get; }
-            public ICommand RemoveFromListCommand { get; }
-            public ICommand OpenProjectLocationCommand { get; }
-
-            public RecentProjectCard(string projectName, string projectPath, DateTime lastOpened, VisualizedDataStructure visualizedDataStructure, Func<string, Task> removeFromList)
-            {
-                ProjectName = projectName;
-                ProjectPath = projectPath;
-                LastOpened = lastOpened;
-                LastOpenedFormatted = lastOpened.ToString("dd.MM.yyyy г. HH:mm");
-                DataStructureType = visualizedDataStructure.ToString();
-
-                RemoveFromListCommand = new AsyncRelayCommand(() => removeFromList(projectPath));
-                OpenProjectLocationCommand = new RelayCommand(() =>
-                {
-                    if (Directory.Exists(projectPath))
-                        Process.Start(new ProcessStartInfo { FileName = projectPath, UseShellExecute = true });
-                });
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    $"Неуспешно отваряне на анимация: {ex.Message}",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
             }
         }
     }

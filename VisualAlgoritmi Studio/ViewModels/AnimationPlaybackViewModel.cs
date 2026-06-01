@@ -5,20 +5,20 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using VisualAlgoritmi_Studio.Canvas.Operations;
+using VisualAlgoritmi_Studio.Controls.Canvas.Canvases;
 using VisualAlgoritmi_Studio.Controls.Canvas.Core;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.ArrayList;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.LinkedList;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.List;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.Queue;
-using VisualAlgoritmi_Studio.Controls.Canvas.Structures.Stack;
-using VisualAlgoritmi_Studio.Visualization;
+using VisualAlgoritmi_Studio.Controls.Canvas.Operations;
 using VisualAlgoritmi_Studio.Views.Dialogs;
+using VisualAlgoritmi_Studio.Visualization;
 
 namespace VisualAlgoritmi_Studio.ViewModels
 {
-    internal class AnimationPlaybackViewModel : ViewModelBase, IDisposable
+    internal class AnimationPlaybackViewModel : ViewModelBase
     {
         public ICommand GoHomeCommand { get; }
         public ICommand AdvanceStepCommand { get; }
@@ -29,14 +29,13 @@ namespace VisualAlgoritmi_Studio.ViewModels
         private readonly MainWindowViewModel _main;
         private readonly VisualizerCanvasBase _visualizerCanvas;
         private readonly VisualizedDataStructure _visualizedDataStructure;
-        private bool _disposed;
 
         public VisualizerCanvasBase VisualizerCanvas => _visualizerCanvas;
 
         public string SelectedDataStructureName => GetDataStructureDisplayName(_visualizedDataStructure);
 
         public string CurrentStepValueText =>
-            $" {_visualizerCanvas.CurrentStep + 1} / {_visualizerCanvas.StepCount}";
+          $" {(_visualizerCanvas.CurrentStep + 1).ToString("#,0", CultureInfo.InvariantCulture).Replace(",", " ")} / {_visualizerCanvas.StepCount.ToString("#,0", CultureInfo.InvariantCulture).Replace(",", " ")}";
 
         public string CurrentOperationsText =>
             _visualizerCanvas.GetOperationsAtCurrentStep();
@@ -55,19 +54,6 @@ namespace VisualAlgoritmi_Studio.ViewModels
             }
         }
 
-        private static string GetDataStructureDisplayName(VisualizedDataStructure dataStructure)
-        {
-            return dataStructure switch
-            {
-                VisualizedDataStructure.ArrayList => "ArrayList<T>",
-                VisualizedDataStructure.List => "List<T>",
-                VisualizedDataStructure.LinkedList => "LinkedList<T>",
-                VisualizedDataStructure.Queue => "Queue<T>",
-                VisualizedDataStructure.Stack => "Stack<T>",
-                _ => dataStructure.ToString()
-            };
-        }
-
         private void OnCanvasViewChanged(object? sender, EventArgs e)
         {
             OnPropertyChanged(nameof(CanvasZoomText));
@@ -81,59 +67,22 @@ namespace VisualAlgoritmi_Studio.ViewModels
             OnPropertyChanged(nameof(OperationsPrefixText));
         }
 
-        public AnimationPlaybackViewModel(MainWindowViewModel main, string filePath)
+        public static async Task<AnimationPlaybackViewModel?> CreateAsync(MainWindowViewModel main, string filePath)
+        {
+            var result = await ParseFileAsync(filePath);
+
+            return result == null
+                ? null
+                : new AnimationPlaybackViewModel(main, result.Value.Item1, result.Value.Item2);
+        }
+
+        private AnimationPlaybackViewModel(MainWindowViewModel main, VisualizerCanvasBase visualizerCanvas, VisualizedDataStructure visualizedDataStructure)
         {
             _main = main;
 
-            string content = File.ReadAllText(filePath);
+            _visualizerCanvas = visualizerCanvas;
+            _visualizedDataStructure = visualizedDataStructure;
 
-            var parsedContent = ParseFileContent(content);
-
-            if (parsedContent == null)
-            {
-                throw new InvalidOperationException("Invalid file content.");
-            }
-
-            (VisualizedDataStructure dataStructure, string body) = parsedContent.Value;
-            _visualizedDataStructure = dataStructure;
-
-            switch (dataStructure)
-            {
-                case VisualizedDataStructure.ArrayList:
-                    _visualizerCanvas = new ArrayListCanvas();
-                    break;
-
-                case VisualizedDataStructure.List:
-                    _visualizerCanvas = new ListCanvas();
-                    break;
-
-                case VisualizedDataStructure.LinkedList:
-                    _visualizerCanvas = new LinkedListCanvas();
-                    break;
-
-                case VisualizedDataStructure.Queue:
-                    _visualizerCanvas = new QueueCanvas();
-                    break;
-
-                case VisualizedDataStructure.Stack:
-                    _visualizerCanvas = new StackCanvas();
-                    break;
-
-                default:
-                    throw new NotSupportedException($"Visualization for {dataStructure} is not supported.");
-            }
-
-            if (!string.IsNullOrEmpty(body))
-            {
-                CanvasOpLogger? logger = CanvasOpLoggerIO.Deserialize(body);
-
-                if (logger != null) 
-                {
-                    _visualizerCanvas.LoadLoggers([logger]);
-                    _visualizerCanvas.ResetSteps();
-                }
-            }
-            
             GoHomeCommand = new AsyncRelayCommand(async () =>
             {
                 var result = await MessageBox.ShowAsync(
@@ -143,61 +92,220 @@ namespace VisualAlgoritmi_Studio.ViewModels
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    Dispose();
                     _main.CurrentViewModel = new HomeViewModel(_main);
                 }
             });
 
-            AdvanceStepCommand = new RelayCommand(() => { _visualizerCanvas.StepForward(); NotifyStepChanged(); });
-            ReverseStepCommand = new RelayCommand(() => { _visualizerCanvas.StepBack(); NotifyStepChanged(); });
-            RestartCommand = new RelayCommand(() => { _visualizerCanvas.ResetSteps(); NotifyStepChanged(); });
+            AdvanceStepCommand = new RelayCommand(() => 
+            { 
+                _visualizerCanvas.StepForward();
+                NotifyStepChanged();
+            });
+
+            ReverseStepCommand = new RelayCommand(() => 
+            { 
+                _visualizerCanvas.StepBack();
+                NotifyStepChanged();
+            });
+
+            RestartCommand = new RelayCommand(() => 
+            {
+                _visualizerCanvas.ResetSteps(); 
+                NotifyStepChanged();
+            });
+
             ScreenshotCommand = new AsyncRelayCommand(TakeScreenshotAsync);
 
             _visualizerCanvas.ViewChanged += OnCanvasViewChanged;
         }
 
-        private static (VisualizedDataStructure dataStructure, string body)? ParseFileContent(string content)
+        public void ResetCanvasView()
         {
-            // Normalize line endings for cross-platform compatibility
-            content = content.Replace("\r\n", "\n");
+            _visualizerCanvas.ResetView();
 
-            int newLineIndex = content.IndexOf('\n');
+            OnPropertyChanged(nameof(CanvasZoomText));
+            OnPropertyChanged(nameof(CanvasOffsetText));
+        }
 
-            if (newLineIndex == -1)
+        private static async Task<(VisualizerCanvasBase, VisualizedDataStructure)?> ParseFileAsync(string filePath)
+        {
+            try
             {
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    throw new ArgumentException("Пътят към файла е празен.");
+                }
+
+                if (!File.Exists(filePath))
+                {
+                    throw new FileNotFoundException("Файлът не съществува.", filePath);
+                }
+
+                string content = await File.ReadAllTextAsync(filePath);
+
+                var result = ParseFileContent(content);
+
+                if (result is ParseResult.Failure failure)
+                {
+                    throw new InvalidDataException(failure.Reason);
+                }
+
+                if (result is not ParseResult.Success success)
+                {
+                    throw new InvalidDataException("Невалиден формат на файла: неизвестен резултат от парсването.");
+                }
+
+                var visualizerCanvas = CreateVisualizerCanvas(success.DataStructure);
+
+                string body = success.Body;
+
+                if (!string.IsNullOrWhiteSpace(body))
+                {
+                    CanvasTimeline? canvasTimeline = CanvasTimelineSerializer.Deserialize(body);
+
+                    if (canvasTimeline == null)
+                    {
+                        throw new InvalidDataException("Файлът съдържа невалидни данни за анимацията.");
+                    }
+
+                    visualizerCanvas.LoadTimelineAndResetView(canvasTimeline);
+                    visualizerCanvas.ResetSteps();
+                }
+
+                return (visualizerCanvas, success.DataStructure);
+            }
+            catch (Exception ex)
+            {
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    $"Неуспешно зареждане на анимация: {ex.Message}",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+
                 return null;
             }
+        }
 
-            string header = content.Substring(0, newLineIndex);
-            string body = content.Substring(newLineIndex + 1);
-
-            const string prefix = "DataStructure: ";
-
-            if (!header.StartsWith(prefix))
+        private static VisualizerCanvasBase CreateVisualizerCanvas(VisualizedDataStructure dataStructure)
+        {
+            return dataStructure switch
             {
-                return null;
+                VisualizedDataStructure.ArrayList => new ArrayListCanvas(),
+                VisualizedDataStructure.List => new ListCanvas(),
+                VisualizedDataStructure.LinkedList => new LinkedListCanvas(),
+                VisualizedDataStructure.Queue => new QueueCanvas(),
+                VisualizedDataStructure.Stack => new StackCanvas(),
+                _ => throw new NotSupportedException($"Visualization for {dataStructure} is not supported.")
+            };
+        }
+
+        private static ParseResult ParseFileContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return new ParseResult.Failure("Файлът е празен.");
             }
 
-            string dataStructureString = header.Substring(prefix.Length);
+            content = content.ReplaceLineEndings("\n");
+            string[] lines = content.Split('\n');
+
+            if (!lines[0].StartsWith("HeaderLines:"))
+            {
+                return ParseOldFormat(content);
+            }
+
+            string headerLinesText = lines[0]["HeaderLines:".Length..].Trim();
+
+            if (!int.TryParse(headerLinesText, out int headerLines))
+            {
+                return new ParseResult.Failure("Невалидна стойност за 'HeaderLines'.");
+            }
+
+            if (headerLines < 1 || headerLines > lines.Length)
+            {
+                return new ParseResult.Failure("Невалиден брой header редове.");
+            }
+
+            var headers = new Dictionary<string, string>();
+
+            for (int i = 1; i < headerLines; i++)
+            {
+                string line = lines[i];
+                int separatorIndex = line.IndexOf(':');
+
+                if (separatorIndex <= 0)
+                {
+                    return new ParseResult.Failure($"Невалиден header ред: '{line}'.");
+                }
+
+                string key = line[..separatorIndex].Trim();
+                string value = line[(separatorIndex + 1)..].Trim();
+
+                headers[key] = value;
+            }
+
+            if (!headers.TryGetValue("DataStructure", out string? dataStructureString))
+            {
+                return new ParseResult.Failure("Липсва поле 'DataStructure'.");
+            }
+
             if (!Enum.TryParse(dataStructureString, out VisualizedDataStructure dataStructure))
             {
-                return null;
+                return new ParseResult.Failure(
+                    $"'{dataStructureString}' не е валидна стойност за {nameof(VisualizedDataStructure)}. " +
+                    $"Очаквани стойности: {string.Join(", ", Enum.GetNames<VisualizedDataStructure>())}");
             }
 
-            return (dataStructure, body);
+            string body = string.Join('\n', lines[headerLines..]);
+
+            return new ParseResult.Success(dataStructure, body);
         }
 
-        public void Dispose()
+        private static ParseResult ParseOldFormat(string content)
         {
-            if (_disposed)
-                return;
+            int newLineIndex = content.IndexOf('\n');
 
-            _visualizerCanvas.ViewChanged -= OnCanvasViewChanged;
-            _visualizerCanvas?.Dispose();
-            _disposed = true;
+            if (newLineIndex < 0)
+            {
+                return new ParseResult.Failure(
+                    "Съдържанието не съдържа нов ред — липсва разделител между заглавната част и тялото.");
+            }
+
+            string header = content[..newLineIndex];
+            string body = content[(newLineIndex + 1)..];
+
+            if (!header.StartsWith("DataStructure:", StringComparison.Ordinal))
+            {
+                return new ParseResult.Failure(
+                    $"Заглавната част '{header}' не започва с очаквания префикс 'DataStructure:'.");
+            }
+
+            string dataStructureString = header["DataStructure:".Length..].Trim();
+
+            if (!Enum.TryParse(dataStructureString, out VisualizedDataStructure dataStructure))
+            {
+                return new ParseResult.Failure(
+                    $"'{dataStructureString}' не е валидна стойност за {nameof(VisualizedDataStructure)}. " +
+                    $"Очаквани стойности: {string.Join(", ", Enum.GetNames<VisualizedDataStructure>())}");
+            }
+
+            return new ParseResult.Success(dataStructure, body);
         }
 
-        private async System.Threading.Tasks.Task TakeScreenshotAsync()
+        private static string GetDataStructureDisplayName(VisualizedDataStructure dataStructure)
+        {
+            return dataStructure switch
+            {
+                VisualizedDataStructure.ArrayList => "ArrayList<T>",
+                VisualizedDataStructure.List => "List<T>",
+                VisualizedDataStructure.LinkedList => "LinkedList<T>",
+                VisualizedDataStructure.Queue => "Queue<T>",
+                VisualizedDataStructure.Stack => "Stack<T>",
+                _ => dataStructure.ToString()
+            };
+        }
+
+        private async Task TakeScreenshotAsync()
         {
             Window? mainWindow =
                 (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
@@ -238,6 +346,17 @@ namespace VisualAlgoritmi_Studio.ViewModels
             }
 
             await _visualizerCanvas.TakeScreenshotAsync(file.Path.LocalPath);
+        }
+
+        private sealed record ParsedFileContent(
+            VisualizedDataStructure DataStructure,
+            string Body
+        );
+
+        private abstract record ParseResult
+        {
+            public sealed record Success(VisualizedDataStructure DataStructure, string Body) : ParseResult;
+            public sealed record Failure(string Reason) : ParseResult;
         }
     }
 }

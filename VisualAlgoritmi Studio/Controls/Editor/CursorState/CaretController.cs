@@ -1,6 +1,5 @@
 ﻿using Avalonia.Media;
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using VisualAlgoritmi_Studio.Controls.Editor.Text;
 
@@ -11,12 +10,14 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
         private readonly TextBuffer _textBuffer;
         private readonly IGraphemeNavigator _graphemeNavigator;
 
-        private int _version = 0;
+        private int _line = 0;
+        private int _column = 0;
         private int _preferredColumn = 0;
         private CharacterHit _caretCharacterHit;
+        private int _version = 0;
 
-        public int Line { get; private set; }
-        public int Column { get; private set; }
+        public int Line => _line;
+        public int Column => _column;
         public int Version => _version;
 
         public CaretController(TextBuffer textBuffer, IGraphemeNavigator graphemeNavigator)
@@ -37,7 +38,7 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
         
         public void SetPosition(int line, int column)
         {
-            if (Line == line && Column == column)
+            if (_line == line && _column == column)
             {
                 return;
             }
@@ -48,8 +49,8 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
             int lineLength = _textBuffer.GetLineLength(line);
             column = Math.Clamp(column, 0, lineLength);
 
-            Line = line;
-            Column = column;
+            _line = line;
+            _column = column;
             _preferredColumn = column;
             _caretCharacterHit = new CharacterHit(column);
 
@@ -58,39 +59,39 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
 
         public void MoveRight()
         {
-            if (Column == _textBuffer.GetLineLength(Line))
+            if (_column == _textBuffer.GetLineLength(_line))
             {
                 MoveDown(moveToLineStart: true);
-                _preferredColumn = Column;
+                _preferredColumn = _column;
                 return;
             }
             
-            Column = _graphemeNavigator.GetNextIndex(Line, ref _caretCharacterHit);
-            _preferredColumn = Column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _column = _graphemeNavigator.GetNextIndex(Line, ref _caretCharacterHit);
+            _preferredColumn = _column;
+            _caretCharacterHit = new CharacterHit(_column);
 
             IncreaseVersion();  
         }
 
         public void MoveLeft()
         {
-            if (Column == 0)
+            if (_column == 0)
             {
                 MoveUp(moveToLineEnd: true);
                 _preferredColumn = Column;
                 return;
             }
 
-            Column = _graphemeNavigator.GetPreviousIndex(Line, ref _caretCharacterHit);
-            _preferredColumn = Column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _column = _graphemeNavigator.GetPreviousIndex(Line, ref _caretCharacterHit);
+            _preferredColumn = _column;
+            _caretCharacterHit = new CharacterHit(_column);
             
             IncreaseVersion();
         }
 
         public void MoveUp(bool moveToLineStart = false, bool moveToLineEnd = false)
         {
-            if (Line == 0)
+            if (_line == 0)
             {
                 return;
             }
@@ -120,16 +121,16 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
                 }
             }
 
-            Line--;
-            Column = column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _line--;
+            _column = column;
+            _caretCharacterHit = new CharacterHit(_column);
 
             IncreaseVersion();
         }
 
         public void MoveDown(bool moveToLineStart = false, bool moveToLineEnd = false)
         {
-            if (Line == _textBuffer.LineCount - 1)
+            if (_line == _textBuffer.LineCount - 1)
             {
                 return;
             }
@@ -159,9 +160,9 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
                 }
             }
 
-            Line++;
-            Column = column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _line++;
+            _column = column;
+            _caretCharacterHit = new CharacterHit(_column);
 
             IncreaseVersion();
         }
@@ -189,43 +190,43 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
 
             var targetLine = lines.GetLineFromPosition(lookupPosition);
 
-            Line = targetLine.LineNumber;
+            _line = targetLine.LineNumber;
 
             if (targetPosition == textLength)
             {
-                Column = targetLine.Span.Length;
+                _column = targetLine.Span.Length;
             }
             else
             {
-                Column = targetPosition - targetLine.Start;
+                _column = targetPosition - targetLine.Start;
             }
 
-            _preferredColumn = Column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _preferredColumn = _column;
+            _caretCharacterHit = new CharacterHit(_column);
 
             IncreaseVersion();
         }
 
         public void MoveToLineStart()
         {
-            Column = 0;
-            _preferredColumn = Column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _column = 0;
+            _preferredColumn = _column;
+            _caretCharacterHit = new CharacterHit(_column);
             IncreaseVersion();
         }
 
         public void MoveToLineEnd()
         {
-            Column = _textBuffer.GetLineLength(Line);
-            _preferredColumn = Column;
-            _caretCharacterHit = new CharacterHit(Column);
+            _column = _textBuffer.GetLineLength(_line);
+            _preferredColumn = _column;
+            _caretCharacterHit = new CharacterHit(_column);
             IncreaseVersion();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetAbsoluteCaretPosition()
         {
-            return _textBuffer.GetAbsolutePosition(Line, Column);
+            return _textBuffer.GetAbsolutePosition(_line, _column);
         }
     }
 }

@@ -9,7 +9,7 @@ public partial class MessageBoxDialog : Window
 {
     private static readonly System.Collections.Generic.Dictionary<MessageBoxIcon, string> IconPaths = new()
     {
-        [MessageBoxIcon.Critical] = "/Assets/Icons/critical-error.svg",
+        [MessageBoxIcon.Error] = "/Assets/Icons/critical-error.svg",
         [MessageBoxIcon.Warning] = "/Assets/Icons/warning.svg",
     };
 
@@ -84,6 +84,7 @@ public partial class MessageBoxDialog : Window
         btn.Click += async (_, _) =>
         {
             var topLevel = TopLevel.GetTopLevel(this);
+
             if (topLevel?.Clipboard != null)
             {
                 await topLevel.Clipboard.SetTextAsync($"{title}\n\n{message}");

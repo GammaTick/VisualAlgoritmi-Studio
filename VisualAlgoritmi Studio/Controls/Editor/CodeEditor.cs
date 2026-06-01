@@ -7,10 +7,10 @@ using Avalonia.Media.TextFormatting;
 using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using VisualAlgoritmi_Studio.Controls.Editor.CursorState;
 using VisualAlgoritmi_Studio.Controls.Editor.Input;
 using VisualAlgoritmi_Studio.Controls.Editor.Internal;
@@ -25,9 +25,9 @@ namespace VisualAlgoritmi_Studio.Controls.Editor;
 
 public class CodeEditor : Control
 {
-    private const double MinEditorFontSize = 4;
-    private const double DefaultEditorFontSize = 14;
-    private const double MaxEditorFontSize = 30;
+    public const double MinEditorFontSize = 4;
+    public const double DefaultEditorFontSize = 14;
+    public const double MaxEditorFontSize = 30;
     private const double WheelScrollLinesPerDelta = 2.0;
     private readonly Brush ErrorUnderlineBrush = new SolidColorBrush(Color.FromRgb(255, 80, 70));
 
@@ -90,7 +90,11 @@ public class CodeEditor : Control
     public double FontSize
     {
         get => GetValue(FontSizeProperty);
-        set => SetValue(FontSizeProperty, ClampFontSize(value));
+        set
+        {
+            SetValue(FontSizeProperty, ClampFontSize(value));
+            FontSizeChanged?.Invoke(this, value);
+        }
     }
 
     public IBrush SelectionBrush
@@ -168,9 +172,12 @@ public class CodeEditor : Control
     private readonly CaretBlinkController _caretBlink;
     private int _diagnosticsUpdateVersion;
     
-    public event Action<List<Diagnostic>>? DiagnosticsUpdated;
+    public event Action<IReadOnlyList<Diagnostic>>? DiagnosticsUpdated;
     public event EventHandler? ScrollMetricsChanged;
     public event EventHandler? CodeContentChanged;
+
+    public event EventHandler<double>? FontSizeChanged;
+
     public CodeAnalysisSession CodeAnalysisSession => _codeAnalysisSession;
 
     private IReadOnlyList<Diagnostic> _currentErrors = [];
@@ -262,6 +269,7 @@ public class CodeEditor : Control
 
         // Semantic highlighting — full redraw on document update.
         var syntaxTree = compilation.SyntaxTrees.FirstOrDefault();
+
         if (syntaxTree != null)
         {
             var semanticModel = compilation.GetSemanticModel(syntaxTree);
@@ -269,14 +277,10 @@ public class CodeEditor : Control
             _codeLayoutManager.RebuildFullLayout();
         }
 
-        var diagnostics = compilation.GetDiagnostics()
-            .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .ToList();
-
         _pendingLineAdjustments.Clear();
-        _currentErrors = diagnostics;
+        _currentErrors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToImmutableArray();
         InvalidateVisual();
-        DiagnosticsUpdated?.Invoke(diagnostics);
+        DiagnosticsUpdated?.Invoke(_currentErrors);
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -1116,7 +1120,7 @@ public class CodeEditor : Control
 
     private void AdjustFontSize(double delta)
     {
-        double nextFontSize = ClampFontSize(FontSize + delta);
+        int nextFontSize = ClampFontSize(FontSize + delta);
 
         if (!nextFontSize.Equals(FontSize))
         {
@@ -1124,9 +1128,10 @@ public class CodeEditor : Control
         }
     }
 
-    private static double ClampFontSize(double fontSize)
+    private static int ClampFontSize(double fontSize)
     {
-        return Math.Clamp(fontSize, MinEditorFontSize, MaxEditorFontSize);
+        double clamped = Math.Clamp(fontSize, MinEditorFontSize, MaxEditorFontSize);
+        return (int)Math.Round(clamped, MidpointRounding.AwayFromZero);
     }
 
     private int ConvertGlobalDocLineToLocal(int line)
@@ -1163,7 +1168,7 @@ public class CodeEditor : Control
         return FontSize + padding;
     }
 
-    public async Task SetCode(string code)
+    public void SetCode(string code)
     {
         _editorStateTracker.Snapshot();
 
@@ -1171,6 +1176,7 @@ public class CodeEditor : Control
         _undoRedoManager.Clear();
         _caretController.SetPosition(0, 0);
         _selectionController.CollapseTo(0, 0);
+        _codeLayoutManager.RebuildFullLayout();
 
         _codeAnalysisSession?.SetPendingSourceText(_textBuffer.SourceText);
 
@@ -1287,5 +1293,10 @@ public class CodeEditor : Control
         EditorDirtyFlags editorDirtyFlags = _editorStateTracker.ComputeDirtyFlags();
 
         EnsureFreshLayout(editorDirtyFlags);
+    }
+
+    public bool HasErrors()
+    {
+        return _currentErrors.Count > 0;
     }
 }

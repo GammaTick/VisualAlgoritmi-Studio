@@ -5,8 +5,8 @@ using Avalonia.Interactivity;
 using System;
 using VisualAlgoritmi_Studio.Models;
 using VisualAlgoritmi_Studio.ViewModels;
-using VisualAlgoritmi_Studio.Controls.Console;
 using Avalonia.Input.Platform;
+using VisualAlgoritmi_Studio.Controls.Editor;
 
 namespace VisualAlgoritmi_Studio.Views;
 
@@ -19,6 +19,8 @@ public partial class VisualizationView : UserControl
     {
         InitializeComponent();
 
+        SetCodeEditorFontFromSettings();
+
         DataContextChanged += (_, _) =>
         {
             if (DataContext is VisualizationViewModel vm)
@@ -28,9 +30,25 @@ public partial class VisualizationView : UserControl
             }
         };
 
+        CodeEditorControl.FontSizeChanged += CodeEditorControl_FontSizeChanged;
         CodeEditorControl.ScrollMetricsChanged += OnEditorScrollMetricsChanged;
         EditorVerticalScrollBar.Scroll += OnVerticalScrollBarChanged;
         EditorHorizontalScrollBar.Scroll += OnHorizontalScrollBarChanged;
+    }
+
+    private void SetCodeEditorFontFromSettings()
+    {
+        double font = App.Settings.CodeEditorFontSize;
+
+        font = Math.Clamp(font, CodeEditor.MinEditorFontSize, CodeEditor.MaxEditorFontSize);
+
+        CodeEditorControl.FontSize = font;
+    }
+
+    private void CodeEditorControl_FontSizeChanged(object? sender, double e)
+    {
+        App.Settings.CodeEditorFontSize = e;
+        App.Settings.Save();
     }
 
     private void OnEditorScrollMetricsChanged(object? sender, EventArgs e)

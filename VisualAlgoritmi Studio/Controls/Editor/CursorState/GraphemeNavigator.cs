@@ -20,10 +20,6 @@ namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState
             _viewportManager = viewportManager;
         }
 
-        // =============================
-        // PUBLIC API
-        // =============================
-
         public int GetNextIndex(int line, ref CharacterHit characterHit)
         {
             if (_viewportManager.IsDocumentLineVisible(line))

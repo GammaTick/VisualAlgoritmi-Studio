@@ -1,17 +1,14 @@
 ﻿using Avalonia;
 using Avalonia.Media.TextFormatting;
-using System;
 
 namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 {
-    public class VisualNode : IDisposable
+    public class VisualNode
     {
         public TextLayout Layout { get; }
         public Point CellLocation { get; set; }
         public double CellHeight { get; }
         public double CellWidth { get; }
-
-        private bool _disposed;
 
         public VisualNode(TextLayout layout, Point cellLocation, double cellHeight, double cellWidth)
         {
@@ -39,17 +36,6 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
         public virtual VisualNode Clone()
         {
             return new VisualNode(Layout, CellLocation, CellHeight, CellWidth);
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            Layout.Dispose();
-            _disposed = true;
         }
     }
 }

@@ -10,6 +10,7 @@
 			 x:Class="VisualAlgoritmi_Studio.Views.HomeView"
 			 xmlns:vm="clr-namespace:VisualAlgoritmi_Studio.ViewModels"
 			 x:DataType="vm:HomeViewModel"
+			 xmlns:models="using:VisualAlgoritmi_Studio.Models"
 			 Background="#1C1C1C">
 
 	<UserControl.Styles>
@@ -19,24 +20,23 @@
 	<Grid RowDefinitions="Auto,Auto,*,Auto" Margin="30,20">
 
 		<!-- HEADER -->
-		<Border Grid.Row="0" Margin="18,28,0,32">
+		<Border Grid.Row="0" Margin="30,30,0,30">
 			<StackPanel Grid.Row="0">
-				<TextBlock
-				Text="VisualAlgoritmi Studio"
-				FontFamily="Segoe UI"
-				FontSize="30"
-				FontWeight="SemiBold"
-				Foreground="White"
+				<Svg
+				Path="/Assets/Icons/app-logo-long.svg"
+				Height="90"
+				Stretch="Uniform"
+				HorizontalAlignment="Left"
 				Margin="0,0,0,10"/>
 
 				<TextBlock Text="Съживи света на програмирането."
-						   FontSize="18"
+						   FontSize="24"
 						   FontStyle="Italic"
 						   Foreground="#AAAAAA"/>
 			</StackPanel>
 		</Border>
 
-		<Grid Grid.Row="1" 
+		<Grid Grid.Row="1"
 			  ColumnDefinitions="*,*,*"
 			  ColumnSpacing="26"
 			  VerticalAlignment="Top"
@@ -132,7 +132,7 @@
 
 				<!-- Empty state -->
 				<TextBlock Grid.Row="1"
-							   Text="Няма намерени скорошни проекти."
+						   Text="Няма намерени скорошни проекти."
 						   FontSize="20"
 						   FontStyle="Italic"
 						   Foreground="#888888"
@@ -145,7 +145,7 @@
 							  IsVisible="{Binding HasRecentProjects}">
 					<ItemsControl ItemsSource="{Binding RecentProjects}">
 						<ItemsControl.ItemTemplate>
-							<DataTemplate x:DataType="vm:HomeViewModel+RecentProjectCard">
+							<DataTemplate x:DataType="models:RecentProjectCard">
 								<Button Background="Transparent"
 										Padding="0"
 										Margin="0,0,0,12"
@@ -157,10 +157,10 @@
 										Cursor="Hand">
 									<Button.ContextMenu>
 										<ContextMenu>
-													<MenuItem Header="Премахни от списъка"
+											<MenuItem Header="Премахни от списъка"
 													  Command="{Binding RemoveFromListCommand}" />
 											<Separator />
-													<MenuItem Header="Отвори местоположението"
+											<MenuItem Header="Отвори местоположението"
 													  Command="{Binding OpenProjectLocationCommand}" />
 										</ContextMenu>
 									</Button.ContextMenu>

@@ -3,12 +3,9 @@ using Avalonia.Media.TextFormatting;
 using Avalonia.Utilities;
 using VisualAlgoritmi_Studio.Controls.Editor.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using VisualAlgoritmi_Studio.RoslynCore;
-using VisualAlgoritmi_Studio.Controls.Editor.Viewport;
-using VisualAlgoritmi_Studio.Controls.Editor.LayoutsManagement;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Runtime.CompilerServices;
 

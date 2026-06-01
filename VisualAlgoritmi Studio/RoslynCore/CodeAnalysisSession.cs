@@ -1,11 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Text;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -72,7 +68,7 @@ namespace VisualAlgoritmi_Studio.RoslynCore
 
             if (forceFlush)
             {
-                FlushPendingSourceTextAsync();
+                FlushPendingSourceText();
                 return;
             }
 
@@ -84,7 +80,7 @@ namespace VisualAlgoritmi_Studio.RoslynCore
             return _fastTree;
         }
 
-        public void FlushPendingSourceTextAsync()
+        public void FlushPendingSourceText()
         {
             SourceText? sourceText;
 
@@ -118,11 +114,27 @@ namespace VisualAlgoritmi_Studio.RoslynCore
             try
             {
                 await Task.Delay(_debounceDelay, cancellationToken);
-                FlushPendingSourceTextAsync();
+                FlushPendingSourceText();
             }
             catch (OperationCanceledException)
             {
             }
+        }
+
+        public async Task<Microsoft.CodeAnalysis.Compilation?> GetCompilationAsync()
+        {
+            // Important: apply any debounced text before asking Roslyn for compilation,
+            // otherwise you may compile an older document.
+            FlushPendingSourceText();
+
+            var document = _roslynHost.GetDocument();
+
+            if (document == null)
+            {
+                return null;
+            }
+
+            return await document.Project.GetCompilationAsync();
         }
 
         public void Dispose()

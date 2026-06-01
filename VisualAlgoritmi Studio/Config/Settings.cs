@@ -9,8 +9,10 @@ namespace VisualAlgoritmi_Studio.Config
     public class Settings
     {
         public string DefaultProjectCreationPath { get; set; } = GetDefaultProjectCreationPath();
-
         public List<string> RecentProjectPaths { get; set; } = [];
+        public bool StartWindowMaximized { get; set; }
+        public double CodeEditorFontSize { get; set; } = 14;
+        public bool DisplayExtraLinkedListInfo { get; set; } = true;
 
         private static string GetDefaultProjectCreationPath()
         {
@@ -50,7 +52,7 @@ namespace VisualAlgoritmi_Studio.Config
         {
             for (int i = RecentProjectPaths.Count - 1; i >= 0; i--)
             {
-                string configPath = Path.Combine(RecentProjectPaths[i], ProjectManager.ProjectConfigFileName);
+                string configPath = Path.Combine(RecentProjectPaths[i], ProjectIO.ProjectConfigFileName);
 
                 if (!File.Exists(configPath))
                 {

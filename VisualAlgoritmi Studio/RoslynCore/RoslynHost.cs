@@ -90,6 +90,18 @@ namespace VisualAlgoritmi_Studio.RoslynCore
             return RoslynHostReferences.GetDefaultReferences();
         }
 
+        public async Task<Microsoft.CodeAnalysis.Compilation?> GetCompilationAsync()
+        {
+            var document = _workspace.CurrentSolution.GetDocument(_documentId);
+
+            if (document == null)
+            {
+                return null;
+            }
+
+            return await document.Project.GetCompilationAsync();
+        }
+
         public void Dispose()
         {
             if (_disposed)

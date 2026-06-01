@@ -40,12 +40,17 @@ public static class MessageBox
     private static Window? GetOwnerWindow()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
             return null;
+        }
 
         // Prefer the currently active (focused) window
         var active = desktop.Windows.FirstOrDefault(w => w.IsActive);
+
         if (active is not null)
+        {
             return active;
+        }
 
         // Fallback to main window
         return desktop.MainWindow;

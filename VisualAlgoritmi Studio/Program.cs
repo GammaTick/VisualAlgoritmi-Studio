@@ -1,5 +1,6 @@
-﻿using System;
-using Avalonia;
+﻿using Avalonia;
+using System;
+using VisualAlgoritmi_Studio.Diagnostics;
 
 namespace VisualAlgoritmi_Studio
 {
@@ -11,7 +12,17 @@ namespace VisualAlgoritmi_Studio
         [STAThread]
         public static void Main(string[] args)
         {
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            CrashReporter.RegisterGlobalHandlers();
+
+            try
+            {
+                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.WriteCrashReport(ex, "Fatal startup/runtime exception");
+                throw;
+            }
         }
 
         // Avalonia configuration, don't remove; also used by visual designer.

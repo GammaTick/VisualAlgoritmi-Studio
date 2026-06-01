@@ -1,0 +1,52 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Linq;
+using System.IO;
+
+internal class Program
+{
+    static void Main(string[] args)
+    {
+        ArrayList list = new ArrayList();
+
+        list.Add(1);
+        list.Add(2.5);
+        list.Add("hello");
+        list.Add(true);
+
+        int index = list.IndexOf("hello");
+        list.Insert(index, "INSERTED");
+
+        list.Remove("world");
+        list.RemoveAt(0);
+
+        bool containsValue = list.Contains(3.14);
+
+        int count = list.Count;
+
+        list.Reverse();
+
+        list.InsertRange(1, new object[] { "A", "B", 999 });
+
+        list.RemoveRange(0, 2);
+
+        list.Clear();
+
+        Random random = new();
+        int[] randomNums = new int[10];
+        
+        for (int i = 0; i < randomNums.Length; i++)
+        {
+            randomNums[i] = random.Next(-10, 10);
+        }
+        
+        list.AddRange(randomNums);
+
+        list.Sort();
+    }
+}

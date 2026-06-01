@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using VisualAlgoritmi_Studio.Controls.Editor.CursorState;
-using VisualAlgoritmi_Studio.Controls.Editor.Text;
 
 namespace VisualAlgoritmi_Studio.Controls.Editor.Text
 {

@@ -1,6 +1,5 @@
 ﻿using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;

@@ -7,18 +7,15 @@ using Avalonia.Media.TextFormatting;
 using Avalonia.Threading;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using VisualAlgoritmi_Studio.Controls.Canvas.Registry;
-using VisualAlgoritmi_Studio.DotNetInternals;
+using VisualAlgoritmi_Studio.Canvas.Operations;
 
 namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 {
-    public abstract class VisualizerCanvasBase : Control, IDisposable
+    public abstract class VisualizerCanvasBase : Control
     {
         private const double PanStep = 20;
         private const double ZoomFactor = 1.1;
@@ -27,7 +24,7 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         protected Typeface _typeface;
         protected SolidColorBrush _foregroundBrush;
-        protected IReadOnlyList<CanvasOpLogger>? _loggers;
+        protected CanvasTimeline? _canvasTimeline;
         protected int _currentStep = -1;
 
         private double _offsetX;
@@ -35,7 +32,6 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
         private double _zoom = 1.0;
         private bool _isPanning;
         private Point _lastPanPoint;
-        private bool _disposed;
         private Matrix _viewMatrix;
         private Matrix _zoomMatrix;
         private Matrix _translationMatrix;
@@ -65,6 +61,8 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         public static readonly StyledProperty<FontFamily> FontFamilyProperty =
             AvaloniaProperty.Register<VisualizerCanvasBase, FontFamily>(nameof(FontFamily), new FontFamily("Cascadia Mono"));
+
+        public event EventHandler? StepChanged;
 
         static VisualizerCanvasBase()
         {
@@ -114,20 +112,22 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
             return ((int)Math.Round(_offsetX), (int)Math.Round(_offsetY));
         }
 
+        public CanvasTimeline? Timeline => _canvasTimeline;
+
         public int CurrentStep => _currentStep;
 
-        public bool HasExecuted => _loggers != null;
+        public bool HasExecuted => _canvasTimeline != null;
 
         public int StepCount
         {
             get
             {
-                if (_loggers == null || _loggers.Count == 0)
+                if (_canvasTimeline == null)
                 {
                     return 0;
                 }
 
-                return _loggers[0].StepsCount;
+                return _canvasTimeline.GetStepCount(0);
             }
         }
 
@@ -142,28 +142,21 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
             Cursor = new Cursor(StandardCursorType.Arrow);
         }
 
-        public virtual void OnExecutionEnded()
+        public virtual void LoadTimelineAndResetView(CanvasTimeline timeline)
         {
-            _loggers = VisualDataStructuresRegister.GetLoggers(this);
-            _currentStep = -1;
-            ResetView();
-        }
-
-        public void LoadLoggers(IReadOnlyList<CanvasOpLogger> loggers)
-        {
-            _loggers = loggers;
+            _canvasTimeline = timeline;
             _currentStep = -1;
             ResetView();
         }
 
         public void StepForward()
         {
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return;
             }
 
-            if (_currentStep == _loggers[0].StepsCount)
+            if (_currentStep == _canvasTimeline.GetStepCount(0))
             {
                 return;
             }
@@ -173,7 +166,7 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         public void StepBack()
         {
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return;
             }
@@ -188,40 +181,53 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         public string GetOperationsAtCurrentStep()
         {
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return string.Empty;
             }
 
-            if (_currentStep < 0 || _currentStep >= _loggers[0].StepsCount)
+            if (_currentStep < 0 || _currentStep >= _canvasTimeline.GetStepCount(0))
             {
                 return string.Empty;
             }
 
-            var logger = _loggers[0];
-            var step = logger.Steps[_currentStep];
+            var step = _canvasTimeline.GetStep(0, _currentStep);
+
+            if (step == null)
+            {
+                // this means that a data structure with this id is not registered
+
+            }
 
             return string.Join(Environment.NewLine, step.Operations.Select(op => op.Description));
         }
 
         public int GetOperationCountAtCurrentStep()
         {
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return 0;
             }
 
-            if (_currentStep < 0 || _currentStep >= _loggers[0].StepsCount)
+            if (_currentStep < 0 || _currentStep >= _canvasTimeline.GetStepCount(0))
             {
                 return 0;
             }
 
-            return _loggers[0].Steps[_currentStep].Operations.Count;
+            var step = _canvasTimeline.GetStep(0, _currentStep);
+
+            if (step == null)
+            {
+                // this means that a data structure with this id is not registered
+
+            }
+
+            return step.Operations.Count;
         }
 
         public void ResetSteps()
         {
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return;
             }
@@ -231,12 +237,12 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         private void SetStep(int step)
         {
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return;
             }
 
-            if (step < 0 || step >= _loggers[0].StepsCount)
+            if (step < 0 || step >= _canvasTimeline.GetStepCount(0))
             {
                 return;
             }
@@ -259,6 +265,38 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            bool isCtrlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+
+            if (isCtrlPressed)
+            {
+                switch (e.Key)
+                {
+                    case Key.Left:
+                        {
+                            e.Handled = true;
+                            StepBack();
+                            StepChanged?.Invoke(this, EventArgs.Empty);
+                            return;
+                        }
+
+                    case Key.Right:
+                        {
+                            e.Handled = true;
+                            StepForward();
+                            StepChanged?.Invoke(this, EventArgs.Empty);
+                            return;
+                        }
+
+                    case Key.R:
+                        {
+                            e.Handled = true;
+                            ResetSteps();
+                            StepChanged?.Invoke(this, EventArgs.Empty);
+                            return;
+                        }
+                }
+            }
+
             switch (e.Key)
             {
                 case Key.Left:
@@ -284,13 +322,19 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
                         _offsetY += PanStep;
                         break;
                     }
+
+                default:
+                    {
+                        base.OnKeyDown(e);
+                        return;
+                    }
             }
 
             UpdateTranslationMatrix();
-
             InvalidateVisual();
-        }
 
+            e.Handled = true;
+        }
         protected override void OnPointerPressed(PointerPressedEventArgs e)
         {
             base.OnPointerPressed(e);
@@ -441,18 +485,29 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
         public async Task TakeScreenshotAsync(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))
-            {
                 return;
-            }
 
             RenderTargetBitmap? bitmap = null;
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                PixelSize pixelSize = GetScreenshotPixelSize();
+                int width = Math.Max(1, (int)Math.Ceiling(Bounds.Width));
+                int height = Math.Max(1, (int)Math.Ceiling(Bounds.Height));
 
-                bitmap = new RenderTargetBitmap(pixelSize, new Vector(256, 256));
-                bitmap.Render(this);
+                double dpi = (VisualRoot as TopLevel)?.RenderScaling * 96 ?? 96;
+
+                bitmap = new RenderTargetBitmap(
+                    new PixelSize(width, height),
+                    new Vector(dpi, dpi)); 
+
+                using var ctx = bitmap.CreateDrawingContext();
+
+                ctx.FillRectangle(Background, new Rect(0, 0, width, height));
+
+                using (ctx.PushTransform(_viewMatrix))
+                {
+                    RenderCore(ctx);
+                }
             });
 
             if (bitmap is null)
@@ -469,32 +524,7 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
             });
         }
 
-        private PixelSize GetScreenshotPixelSize()
-        {
-            int width = Math.Max(1, (int)Math.Ceiling(Bounds.Width));
-            int height = Math.Max(1, (int)Math.Ceiling(Bounds.Height));
-
-            return new PixelSize(width, height);
-        }
-
         public abstract void RenderCore(DrawingContext context);
-
-        public string SerializeAnimation()
-        {
-            if (_loggers == null)
-            {
-                return string.Empty;
-            }
-
-            CanvasOpLogger? logger = _loggers[0];
-
-            if (logger == null)
-            {
-                return string.Empty;
-            }
-
-            return CanvasOpLoggerIO.Serialize(logger);
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateZoomMatrix()
@@ -547,22 +577,6 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
                 && layout.Height <= maxHeight + 0.01;
         }
 
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-
-            DisposeCore();
-
-            GC.SuppressFinalize(this);
-        }
-
-        protected abstract void DisposeCore();
-
         protected class ThrowHelper
         {
             [DoesNotReturn]
@@ -601,14 +615,12 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
                 return;
             }
 
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return;
             }
 
-            var logger = _loggers[0];
-
-            if (_currentStep == logger.StepsCount)
+            if (_currentStep == _canvasTimeline.GetStepCount(0))
             {
                 return;
             }
@@ -624,7 +636,7 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
             _currentStep++;
 
-            StepForwardCore(visualStateCopy, logger.Steps[_currentStep].Operations);
+            StepForwardCore(visualStateCopy, _canvasTimeline.GetStep(0, _currentStep).Operations);
 
             _visibleElements = visualStateCopy;
 
@@ -639,12 +651,10 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
                 return;
             }
 
-            if (_loggers == null || _loggers.Count == 0)
+            if (_canvasTimeline == null)
             {
                 return;
             }
-
-            var logger = _loggers[0];
 
             if (_currentStep == 0)
             {
@@ -655,18 +665,10 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
             if (stepIndex == -1)
             {
-                visualState = [];
+                ThrowHelper.ThrowUnexpected();
             }
 
-            var visualStateCopy = DeepCopyVisualState(visualState!);
-
-            _currentStep--;
-
-            StepBackCore(visualStateCopy, logger.Steps[_currentStep].Operations);
-
-            _visibleElements = visualStateCopy;
-
-            _visualStateCacher.CacheVisualState(targetStep, visualStateCopy);
+            _visibleElements = visualState!;
         }
 
         private static List<T> DeepCopyVisualState(List<T> visualState)
@@ -681,26 +683,24 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
             return copy;
         }
 
-        public override void OnExecutionEnded()
+        public override void LoadTimelineAndResetView(CanvasTimeline timeline)
         {
-            base.OnExecutionEnded();
-
-            _visibleElements.Clear();
-            _visualStateCacher.Clear();
-        }
-        
-        protected override void DisposeCore()
-        {
-            foreach (var item in _visibleElements)
-            {
-                item.Dispose();
-            }
+            base.LoadTimelineAndResetView(timeline);
 
             _visibleElements.Clear();
             _visualStateCacher.Clear();
         }
 
         protected abstract void StepForwardCore(List<T> previousVisualState, IReadOnlyList<ICanvasOp> canvasOps);
-        protected abstract void StepBackCore(List<T> previousVisualState, IReadOnlyList<ICanvasOp> canvasOps);
+
+        private class ThrowHelper
+        {
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            internal static void ThrowUnexpected()
+            {
+                throw new Exception();
+            }
+        }
     }
 }

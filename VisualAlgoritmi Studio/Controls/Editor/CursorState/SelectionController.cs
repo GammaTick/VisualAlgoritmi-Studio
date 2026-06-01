@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using VisualAlgoritmi_Studio.Controls.Editor.Text;
 
 namespace VisualAlgoritmi_Studio.Controls.Editor.CursorState

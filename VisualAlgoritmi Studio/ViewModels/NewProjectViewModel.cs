@@ -2,11 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using VisualAlgoritmi_Studio.Config;
 using VisualAlgoritmi_Studio.ProjectCore;
+using VisualAlgoritmi_Studio.Views.Dialogs;
 using VisualAlgoritmi_Studio.Visualization;
 
 namespace VisualAlgoritmi_Studio.ViewModels
@@ -178,7 +179,7 @@ namespace VisualAlgoritmi_Studio.ViewModels
                 _main.CurrentViewModel = new HomeViewModel(_main)
             );
 
-            CreateProjectCommand = new RelayCommand(CreateProject);
+            CreateProjectCommand = new AsyncRelayCommand(CreateProject);
             SelectCardCommand = new RelayCommand<DataStructureCard>(card => SelectedCard = card);
 
             ProjectParentDirectory = settings.DefaultProjectCreationPath;
@@ -255,11 +256,7 @@ namespace VisualAlgoritmi_Studio.ViewModels
 
             try
             {
-                if (!Directory.Exists(ProjectParentDirectory))
-                {
-                    Directory.CreateDirectory(ProjectParentDirectory);
-                }
-
+                Path.GetFullPath(ProjectParentDirectory);
                 ProjectLocationError = string.Empty;
             }
             catch
@@ -280,19 +277,42 @@ namespace VisualAlgoritmi_Studio.ViewModels
             }
         }
 
-        private void CreateProject()
-        {   
+        private async Task CreateProject()
+        {
             if (!CanCreateProject())
             {
                 return;
             }
 
-            ProjectManager projectManager = new(ProjectName, ProjectParentDirectory, SelectedCard!.VisualizedDataStructure);
+            VisualizedDataStructure visualizedDataStructure = SelectedCard!.VisualizedDataStructure;
+
+            if (!VisualizedDataStructureSupport.IsSupported(visualizedDataStructure))
+            {
+                await MessageBox.ShowAsync(
+                    "Неподдържана структура",
+                    $"Структурата '{visualizedDataStructure}' все още не се поддържа.",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Warning);
+
+                return;
+            }
+
+            Project? createdProject = null;
 
             try
             {
-                projectManager.CreateProject(LoadExampleCode);
-                string projectRootPath = projectManager.ProjectRootPath;
+                createdProject = await ProjectIO.CreateNewProjectAsync(
+                    ProjectName,
+                    ProjectParentDirectory,
+                    visualizedDataStructure,
+                    LoadExampleCode);
+
+                VisualizationViewModel visualizationViewModel = new(
+                    _main,
+                    createdProject,
+                    visualizedDataStructure);
+
+                string projectRootPath = createdProject.RootPath;
 
                 if (!_settings.RecentProjectPaths.Contains(projectRootPath))
                 {
@@ -300,11 +320,36 @@ namespace VisualAlgoritmi_Studio.ViewModels
                     SettingsIO.Save(_settings);
                 }
 
-                _main.CurrentViewModel = new VisualizationViewModel(_main, projectManager, SelectedCard.VisualizedDataStructure, _settings);
+                _main.CurrentViewModel = visualizationViewModel;
             }
             catch (Exception ex)
             {
-                Trace.WriteLine($"Failed to create project: {ex.Message}");
+                if (createdProject is not null)
+                {
+                    TryDeleteCreatedProject(createdProject.RootPath);
+                }
+
+                await MessageBox.ShowAsync(
+                    "Грешка",
+                    $"Неуспешно създаване на проект: {ex.Message}",
+                    MessageBoxButtons.Ok,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private static void TryDeleteCreatedProject(string projectRootPath)
+        {
+            try
+            {
+                if (Directory.Exists(projectRootPath))
+                {
+                    Directory.Delete(projectRootPath, recursive: true);
+                }
+            }
+            catch
+            {
+                // Do not throw here.
+                // The original creation error is more important than cleanup failure.
             }
         }
 

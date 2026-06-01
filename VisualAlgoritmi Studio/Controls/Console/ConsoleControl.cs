@@ -6,7 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using System;
 using System.Text;
-using VisualAlgoritmi_Studio.RoslynCore;
+using System.Threading.Tasks;
 
 namespace VisualAlgoritmi_Studio.Controls.Console;
 
@@ -14,20 +14,27 @@ public class ConsoleControl : UserControl
 {
     private readonly TextBlock _outputTextBlock;
     private readonly ScrollViewer _scrollViewer;
+
     private readonly StringBuilder _outputBuffer = new();
     private readonly StringBuilder _inputLineBuffer = new();
 
-    private ConsoleRedirectWriter? _writer;
-    private ConsoleRedirectReader? _reader;
-    private bool _isWaitingForInput;
-    private bool _caretVisible;
     private readonly DispatcherTimer _caretTimer;
+
+    private bool _inputEnabled;
+    private bool _caretVisible;
+    private bool _scrollQueued;
+
+    public Func<string, Task>? InputSubmittedAsync { get; set; }
 
     public ConsoleControl()
     {
         Focusable = true;
 
-        _caretTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(530) };
+        _caretTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(530)
+        };
+
         _caretTimer.Tick += (_, _) =>
         {
             _caretVisible = !_caretVisible;
@@ -53,53 +60,128 @@ public class ConsoleControl : UserControl
         Content = _scrollViewer;
     }
 
-    public void SetWriter(ConsoleRedirectWriter writer)
+    public void BeginSession()
     {
-        _writer = writer;
-        writer.SetOutputCallback(AppendOutput);
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(BeginSession);
+            return;
+        }
+
+        _inputLineBuffer.Clear();
+
+        _inputEnabled = true;
+        _caretVisible = true;
+
+        _caretTimer.Start();
+
+        Focus();
+        RefreshDisplay();
     }
 
-    public void SetReader(ConsoleRedirectReader reader)
+    public void EndSession()
     {
-        _reader = reader;
-        reader.SetInputRequestedCallback(() =>
+        if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                _isWaitingForInput = true;
-                _caretVisible = true;
-                _caretTimer.Start();
-                Focus();
-            });
-        });
+            Dispatcher.UIThread.Post(EndSession);
+            return;
+        }
+
+        _inputEnabled = false;
+        _inputLineBuffer.Clear();
+
+        _caretVisible = false;
+        _caretTimer.Stop();
+
+        RefreshDisplay();
     }
 
     public void Clear()
     {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            _outputBuffer.Clear();
-            _inputLineBuffer.Clear();
-            _isWaitingForInput = false;
-            _caretVisible = false;
-            _caretTimer.Stop();
-            _outputTextBlock.Text = string.Empty;
-        }
-        else
+        if (!Dispatcher.UIThread.CheckAccess())
         {
             Dispatcher.UIThread.Post(Clear);
+            return;
         }
+
+        _outputBuffer.Clear();
+        _inputLineBuffer.Clear();
+
+        _inputEnabled = false;
+        _caretVisible = false;
+
+        _caretTimer.Stop();
+
+        _outputTextBlock.Text = string.Empty;
+
+        QueueScrollToEnd();
+    }
+
+    public void AppendOutput(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => AppendOutput(text));
+            return;
+        }
+
+        _outputBuffer.Append(text);
+        RefreshDisplay();
+    }
+
+    public void AppendError(string text)
+    {
+        AppendOutput(text);
+    }
+
+    public void AppendSystemMessage(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        AppendOutput($"{Environment.NewLine}{text}{Environment.NewLine}");
+    }
+
+    public void FocusConsole()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(FocusConsole);
+            return;
+        }
+
+        Focus();
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+
+        Focus();
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
 
-        if (!_isWaitingForInput || string.IsNullOrEmpty(e.Text))
+        if (!_inputEnabled || string.IsNullOrEmpty(e.Text))
+        {
             return;
+        }
 
         _inputLineBuffer.Append(e.Text);
+
+        _caretVisible = true;
+
         RefreshDisplay();
+
         e.Handled = true;
     }
 
@@ -107,62 +189,111 @@ public class ConsoleControl : UserControl
     {
         base.OnKeyDown(e);
 
-        if (!_isWaitingForInput)
+        if (!_inputEnabled)
+        {
             return;
+        }
 
         if (e.Key == Key.Enter)
         {
-            var input = _inputLineBuffer.ToString();
-            _inputLineBuffer.Clear();
-            _isWaitingForInput = false;
-            _caretVisible = false;
-            _caretTimer.Stop();
+            SubmitCurrentLine();
 
-            _outputBuffer.Append(input);
-            _outputBuffer.Append(Environment.NewLine);
-            RefreshDisplay();
-
-            _reader?.SubmitInput(input);
             e.Handled = true;
+            return;
         }
-        else if (e.Key == Key.Back && _inputLineBuffer.Length > 0)
+
+        if (e.Key == Key.Back)
         {
-            _inputLineBuffer.Remove(_inputLineBuffer.Length - 1, 1);
+            Backspace();
+
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            _inputLineBuffer.Clear();
+
+            _caretVisible = true;
+
             RefreshDisplay();
+
             e.Handled = true;
         }
     }
 
-    private void AppendOutput(string text)
+    private void SubmitCurrentLine()
     {
-        if (Dispatcher.UIThread.CheckAccess())
+        string input = _inputLineBuffer.ToString();
+
+        _inputLineBuffer.Clear();
+
+        _outputBuffer.Append(input);
+        _outputBuffer.Append(Environment.NewLine);
+
+        _caretVisible = true;
+
+        RefreshDisplay();
+
+        _ = SubmitInputAsync(input);
+    }
+
+    private void Backspace()
+    {
+        if (_inputLineBuffer.Length == 0)
         {
-            _outputBuffer.Append(text);
-            RefreshDisplay();
+            return;
         }
-        else
+
+        _inputLineBuffer.Remove(_inputLineBuffer.Length - 1, 1);
+
+        _caretVisible = true;
+
+        RefreshDisplay();
+    }
+
+    private async Task SubmitInputAsync(string input)
+    {
+        try
         {
-            Dispatcher.UIThread.Post(() => AppendOutput(text));
+            Func<string, Task>? handler = InputSubmittedAsync;
+
+            if (handler != null)
+            {
+                await handler(input);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendSystemMessage($"Console input failed: {ex.Message}");
         }
     }
 
     private void RefreshDisplay()
     {
-        var caret = (_isWaitingForInput && _caretVisible) ? "|" : string.Empty;
-        if (_isWaitingForInput)
-        {
-            _outputTextBlock.Text = _outputBuffer.ToString() + _inputLineBuffer.ToString() + caret;
-        }
-        else
-        {
-            _outputTextBlock.Text = _outputBuffer.ToString();
-        }
+        string caret = _inputEnabled && _caretVisible ? "|" : string.Empty;
 
-        _scrollViewer.Offset = new Vector(0, _scrollViewer.Extent.Height);
+        _outputTextBlock.Text =
+            _outputBuffer.ToString() +
+            _inputLineBuffer.ToString() +
+            caret;
+
+        QueueScrollToEnd();
     }
 
-    public void FocusConsole()
+    private void QueueScrollToEnd()
     {
-        this.Focus();
+        if (_scrollQueued)
+        {
+            return;
+        }
+
+        _scrollQueued = true;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            _scrollQueued = false;
+            _scrollViewer.Offset = new Vector(0, _scrollViewer.Extent.Height);
+        }, DispatcherPriority.Background);
     }
 }
