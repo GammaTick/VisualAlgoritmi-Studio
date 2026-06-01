@@ -138,17 +138,12 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
                 ? RectangleSpacing
                 : previousVisualState[index - 1].EndX + RectangleSpacing;
 
-            string previousValue = index == 0
-                ? "null"
-                : previousVisualState[index - 1].Value;
-
             string nextValue = index == previousVisualState.Count
                 ? "null"
                 : previousVisualState[index].Value;
 
             var node = new LinkedListVisualNode(
                 CreateValueTextLayout(value),
-                CreateLinkTextLayout($"prev: {previousValue}"),
                 CreateLinkTextLayout($"next: {nextValue}"),
                 new Point(xOffset, RectangleSpacing),
                 RectangleHeight,
@@ -208,7 +203,6 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
             LinkedListVisualNode oldNode = visualState[index];
 
             visualState[index] = oldNode.CopyWithLinkLayouts(
-                CreateLinkTextLayout($"prev: {previousValue}"),
                 CreateLinkTextLayout($"next: {nextValue}")
             );
         }
@@ -339,14 +333,7 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
                 return;
             }
 
-            double topDividerY = element.CellLocation.Y + LinkTextHeight;
             double bottomDividerY = element.CellLocation.Y + element.CellHeight - LinkTextHeight;
-
-            context.DrawLine(
-                DividerPen,
-                new Point(element.CellLocation.X, topDividerY),
-                new Point(element.EndX, topDividerY)
-            );
 
             context.DrawLine(
                 DividerPen,
@@ -354,17 +341,14 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
                 new Point(element.EndX, bottomDividerY)
             );
 
-            element.PreviousLayout.Draw(
-                context,
-                new Point(
-                    element.CellLocation.X + LinkTextPaddingX,
-                    element.CellLocation.Y + LinkTextPaddingY
-                )
-            );
+            var textLocation = element.GetTextLocation();
 
             element.Layout.Draw(
                 context,
-                element.GetTextLocation()
+                new Point(
+                    textLocation.X,
+                    textLocation.Y - LinkTextHeight * 0.5
+                )
             );
 
             element.NextLayout.Draw(
@@ -491,12 +475,10 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
         public int NodeId { get; }
         public string Value { get; }
 
-        public TextLayout PreviousLayout { get; }
         public TextLayout NextLayout { get; }
 
         public LinkedListVisualNode(
             TextLayout valueLayout,
-            TextLayout previousLayout,
             TextLayout nextLayout,
             Point cellLocation,
             double cellHeight,
@@ -505,17 +487,15 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
             string value)
             : base(valueLayout, cellLocation, cellHeight, cellWidth)
         {
-            PreviousLayout = previousLayout;
             NextLayout = nextLayout;
             NodeId = nodeId;
             Value = value;
         }
 
-        public LinkedListVisualNode CopyWithLinkLayouts(TextLayout previousLayout, TextLayout nextLayout)
+        public LinkedListVisualNode CopyWithLinkLayouts(TextLayout nextLayout)
         {
             return new LinkedListVisualNode(
                 Layout,
-                previousLayout,
                 nextLayout,
                 CellLocation,
                 CellHeight,
@@ -529,7 +509,6 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
         {
             return new LinkedListVisualNode(
                 Layout,
-                PreviousLayout,
                 NextLayout,
                 CellLocation,
                 CellHeight,

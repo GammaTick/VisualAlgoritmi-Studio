@@ -196,7 +196,6 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
             if (step == null)
             {
                 // this means that a data structure with this id is not registered
-
             }
 
             return string.Join(Environment.NewLine, step.Operations.Select(op => op.Description));
