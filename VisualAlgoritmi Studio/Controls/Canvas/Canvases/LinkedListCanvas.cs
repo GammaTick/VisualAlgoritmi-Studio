@@ -63,7 +63,11 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Canvases
         {
             base.OnKeyDown(e);
 
-            if (e.Key == Key.L && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            bool isShortcutPressed = OperatingSystem.IsMacOS()
+                ? e.KeyModifiers.HasFlag(KeyModifiers.Meta)
+                : e.KeyModifiers.HasFlag(KeyModifiers.Control);
+
+            if (e.Key == Key.L && isShortcutPressed)
             {
                 e.Handled = true;
                 _displayExtraInfo = !_displayExtraInfo;

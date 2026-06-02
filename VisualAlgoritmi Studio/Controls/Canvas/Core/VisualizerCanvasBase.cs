@@ -264,9 +264,11 @@ namespace VisualAlgoritmi_Studio.Controls.Canvas.Core
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            bool isCtrlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+            bool isShortcutPressed = OperatingSystem.IsMacOS()
+                ? e.KeyModifiers.HasFlag(KeyModifiers.Meta)
+                : e.KeyModifiers.HasFlag(KeyModifiers.Control);
 
-            if (isCtrlPressed)
+            if (isShortcutPressed)
             {
                 switch (e.Key)
                 {

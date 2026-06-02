@@ -18,7 +18,9 @@ public sealed class CanvasOperationBinaryPipeline : IAsyncDisposable
             throw new InvalidOperationException("Binary pipeline is already open.");
         }
 
-        string pipeName = $"VisualAlgoritmi_{Guid.NewGuid():N}";
+        string pipeName = OperatingSystem.IsWindows()
+            ? $"VisualAlgoritmi_{Guid.NewGuid():N}"
+            : $"VA_{Random.Shared.Next(int.MaxValue):X}";
 
         _pipe = new NamedPipeServerStream(
             pipeName,
